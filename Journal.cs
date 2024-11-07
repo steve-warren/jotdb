@@ -14,12 +14,12 @@ public class Journal
     {
         _journalIdentitySeed = journalIdentitySeed;
         _file = file;
+
         _channel = Channel.CreateBounded<JournalEntry>(new BoundedChannelOptions(5)
         {
-            AllowSynchronousContinuations = true,
-            FullMode = BoundedChannelFullMode.Wait,
             SingleReader = true,
-            SingleWriter = false
+            SingleWriter = false,
+            AllowSynchronousContinuations = true
         });
     }
 
@@ -30,12 +30,14 @@ public class Journal
     /// <returns>A task that represents the asynchronous write operation.</returns>
     public async Task WriteJournalEntryAsync(ReadOnlyMemory<byte> data)
     {
-        var identity = Interlocked.Increment(ref _journalIdentitySeed);
-        var entry = new JournalEntry(identity, data);
+        var entry = new JournalEntry
+        {
+            Data = data
+        };
 
         await _channel.Writer.WriteAsync(entry).ConfigureAwait(false);
 
-        await entry.WriteCompletionTask;
+        await entry.WriteCompletionTask.ConfigureAwait(false);
     }
 
     public async Task ProcessJournalEntriesAsync(CancellationToken cancellationToken)
@@ -44,20 +46,29 @@ public class Journal
         var completionQueue = new Queue<JournalEntry>();
         var watch = new Stopwatch();
 
+        // blocks until signaled that the channel has data
         while (await reader.WaitToReadAsync(cancellationToken).ConfigureAwait(false))
         {
+            watch.Restart();
+
+            // read all the data available
             while (reader.TryRead(out var entry))
             {
+                entry.Identity = Interlocked.Increment(ref _journalIdentitySeed);
+
+                // write to the file
                 WriteJournalEntry(entry);
 
+                // track the journal entry for signaling when the os buffer is flushed to disk
                 completionQueue.Enqueue(entry);
             }
 
-            watch.Restart();
+            // flush all writes from the os buffer to disk
             _file.Flush();
 
-            Console.WriteLine($"Flushed {completionQueue.Count} journal entries to disk in {watch.ElapsedMilliseconds} ms.");
+            Debug.WriteLine($"Flushed {completionQueue.Count} journal entries to disk in {watch.ElapsedMilliseconds} ms.");
 
+            // mark all journal entries as written to disk
             while (completionQueue.TryDequeue(out var entry))
                 entry.FinishWriting();
         }

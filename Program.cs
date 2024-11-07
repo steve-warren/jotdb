@@ -2,6 +2,7 @@
 using System.Text;
 using JotDB;
 
+File.Delete("data.txt");
 using var fs = new FileStream("data.txt", new FileStreamOptions
 {
     Access = FileAccess.Write,
@@ -13,28 +14,33 @@ var journal = new Journal(0, file);
 var cts = new CancellationTokenSource();
 _ = journal.ProcessJournalEntriesAsync(cts.Token);
 
-Parallel.For(0, 100, i =>
+var data = """
+                   {
+                     "id": 1,
+                     "first_name": "Libbey",
+                     "last_name": "Claessens",
+                     "email": "lclaessens0@nyu.edu",
+                     "ip_address": "187.249.82.137"
+                   }
+                   """u8.ToArray();
+
+var tasks = new List<Task>();
+
+for (var i = 0; i < 100; i++)
 {
-    var watch = new Stopwatch();
-    var data = """
-                       {
-                         "id": 1,
-                         "first_name": "Libbey",
-                         "last_name": "Claessens",
-                         "email": "lclaessens0@nyu.edu",
-                         "ip_address": "187.249.82.137"
-                       }
-                       """u8.ToArray();
-
-    while (true)
+    var id = i;
+    tasks.Add(Task.Run(async () =>
     {
-        //Console.WriteLine($"Thread {i} writing timestamp {timestamp}");
+        var watch = new Stopwatch();
 
-        watch.Restart();
-        journal.WriteJournalEntryAsync(data).Wait();
-        Console.WriteLine($"{watch.ElapsedMilliseconds} write");
-        //Console.WriteLine($"Thread {i} completed.");
+        while (true)
+        {
+            watch.Restart();
+            await journal.WriteJournalEntryAsync(data).ConfigureAwait(false);
+            Console.WriteLine($"Client write completed in {watch.ElapsedMilliseconds} ms");
+            await Task.Delay(1).ConfigureAwait(false);
+        }
+    }));
+}
 
-        Task.Delay(Random.Shared.Next(15, 1000)).Wait();
-    }
-});
+await Task.WhenAll(tasks);
