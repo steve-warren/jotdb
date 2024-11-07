@@ -10,10 +10,10 @@ public sealed class Journal : IAsyncDisposable
     private readonly AppendOnlyFile _file;
     private readonly Channel<JournalEntry> _channel;
 
-    public Journal(ulong journalIdentitySeed, AppendOnlyFile file)
+    public Journal(ulong journalIdentitySeed, string path)
     {
         _journalIdentitySeed = journalIdentitySeed;
-        _file = file;
+        _file = new AppendOnlyFile(path);
 
         _channel = Channel.CreateBounded<JournalEntry>(new BoundedChannelOptions(5)
         {

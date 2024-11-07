@@ -1,7 +1,22 @@
 ﻿using System.Diagnostics;
 using JotDB;
 
+var cancellationTokenSource = new CancellationTokenSource();
+
 var database = new Database();
+
+Console.CancelKeyPress += (sender, e) =>
+{
+    e.Cancel = true;
+    cancellationTokenSource.Cancel();
+    database.ShutdownAsync().Wait();
+};
+
+AppDomain.CurrentDomain.ProcessExit += (sender, e) =>
+{
+    cancellationTokenSource.Cancel();
+    database.ShutdownAsync().Wait();
+};
 
 database.DeleteJournal();
 database.Start();
@@ -18,22 +33,25 @@ var data = """
 
 var tasks = new List<Task>();
 
-for (var i = 0; i < 100; i++)
+for (var i = 0; i < 2; i++)
 {
     var id = i;
-    tasks.Add(Task.Run(async () =>
+
+    tasks.Add(Task.Run(WriteDocument));
+    continue;
+
+    async Task? WriteDocument()
     {
         var watch = new Stopwatch();
 
-        while (true)
+        while (!cancellationTokenSource.IsCancellationRequested)
         {
             watch.Restart();
             await database.InsertDocumentAsync(data).ConfigureAwait(false);
             Console.WriteLine($"Client write completed in {watch.ElapsedMilliseconds} ms");
-            await Task.Delay(1).ConfigureAwait(false);
+            await Task.Delay(1000).ConfigureAwait(false);
         }
-    }));
+    }
 }
 
 await Task.WhenAll(tasks);
-await database.ShutdownAsync();
