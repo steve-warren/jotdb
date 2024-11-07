@@ -10,7 +10,8 @@ public class JournalEntry
     /// </summary>
     public Task WriteCompletionTask => _tcs.Task;
     
-    public ReadOnlyMemory<byte> Data { get; set; }
+    public ReadOnlyMemory<byte> Data { get; init; }
+    public DatabaseOperation Operation { get; init; }
     public ulong Identity { get; set; }
     /// <summary>
     /// Marks the journal entry as written and sets the task result.

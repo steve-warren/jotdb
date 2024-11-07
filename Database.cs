@@ -11,7 +11,7 @@ public class Database
 
     public Task<ulong> InsertDocumentAsync(ReadOnlyMemory<byte> document)
     {
-        return _journal.WriteJournalEntryAsync(document);
+        return _journal.WriteJournalEntryAsync(document, DatabaseOperation.Insert);
     }
 
     public void Start()

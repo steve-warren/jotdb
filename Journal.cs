@@ -4,6 +4,13 @@ using System.Threading.Channels;
 
 namespace JotDB;
 
+public enum DatabaseOperation : byte
+{
+    Insert = 1,
+    Update = 2,
+    Delete = 3
+}
+
 public sealed class Journal : IAsyncDisposable
 {
     private ulong _journalIdentitySeed;
@@ -27,12 +34,14 @@ public sealed class Journal : IAsyncDisposable
     /// Asynchronously writes a new journal entry with the given data.
     /// </summary>
     /// <param name="data">The data to be written in the journal.</param>
+    /// <param name="operation"></param>
     /// <returns>A task that represents the asynchronous write operation.</returns>
-    public async Task<ulong> WriteJournalEntryAsync(ReadOnlyMemory<byte> data)
+    public async Task<ulong> WriteJournalEntryAsync(ReadOnlyMemory<byte> data, DatabaseOperation operation)
     {
         var entry = new JournalEntry
         {
-            Data = data
+            Data = data,
+            Operation = operation
         };
 
         await _channel.Writer.WriteAsync(entry).ConfigureAwait(false);
@@ -78,10 +87,11 @@ public sealed class Journal : IAsyncDisposable
 
     private void WriteJournalEntry(JournalEntry entry)
     {
-        Span<byte> buffer = stackalloc byte[12]; // ulong + int32
+        Span<byte> buffer = stackalloc byte[13]; // ulong + int32 + byte
 
         MemoryMarshal.Write(buffer[..8], entry.Identity);
-        MemoryMarshal.Write(buffer[8..], entry.Data.Length);
+        MemoryMarshal.Write(buffer[8..12], entry.Data.Length);
+        MemoryMarshal.Write(buffer[12..], entry.Operation);
 
         _file.Write(buffer);
         _file.Write(entry.Data.Span);
