@@ -1,13 +1,13 @@
 namespace JotDB;
 
-public class AppendOnlyFile
+public sealed class AppendOnlyFile : IAsyncDisposable
 {
     private readonly FileStream _file;
     private long _offset;
 
-    public AppendOnlyFile(FileStream file)
+    public AppendOnlyFile(string path)
     {
-        _file = file;
+        _file = new FileStream(path, FileMode.Append, FileAccess.Write, FileShare.Read);
     }
 
     public void Write(ReadOnlySpan<byte> buffer)
@@ -16,8 +16,7 @@ public class AppendOnlyFile
         _offset += buffer.Length;
     }
 
-    public void Flush()
-    {
-        RandomAccess.FlushToDisk(_file.SafeFileHandle);
-    }
+    public void Flush() => RandomAccess.FlushToDisk(_file.SafeFileHandle);
+
+    public ValueTask DisposeAsync() => _file.DisposeAsync();
 }

@@ -4,7 +4,7 @@ using System.Threading.Channels;
 
 namespace JotDB;
 
-public class Journal
+public sealed class Journal : IAsyncDisposable
 {
     private ulong _journalIdentitySeed;
     private readonly AppendOnlyFile _file;
@@ -28,7 +28,7 @@ public class Journal
     /// </summary>
     /// <param name="data">The data to be written in the journal.</param>
     /// <returns>A task that represents the asynchronous write operation.</returns>
-    public async Task WriteJournalEntryAsync(ReadOnlyMemory<byte> data)
+    public async Task<ulong> WriteJournalEntryAsync(ReadOnlyMemory<byte> data)
     {
         var entry = new JournalEntry
         {
@@ -38,6 +38,8 @@ public class Journal
         await _channel.Writer.WriteAsync(entry).ConfigureAwait(false);
 
         await entry.WriteCompletionTask.ConfigureAwait(false);
+
+        return entry.Identity;
     }
 
     public async Task ProcessJournalEntriesAsync(CancellationToken cancellationToken)
@@ -83,5 +85,10 @@ public class Journal
 
         _file.Write(buffer);
         _file.Write(entry.Data.Span);
+    }
+
+    public ValueTask DisposeAsync()
+    {
+        return _file.DisposeAsync();
     }
 }

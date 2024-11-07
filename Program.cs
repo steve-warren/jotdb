@@ -1,18 +1,10 @@
 ﻿using System.Diagnostics;
-using System.Text;
 using JotDB;
 
-File.Delete("data.txt");
-using var fs = new FileStream("data.txt", new FileStreamOptions
-{
-    Access = FileAccess.Write,
-    Mode = FileMode.Append
-});
-var file = new AppendOnlyFile(fs);
-var journal = new Journal(0, file);
+var database = new Database();
 
-var cts = new CancellationTokenSource();
-_ = journal.ProcessJournalEntriesAsync(cts.Token);
+database.DeleteJournal();
+database.Start();
 
 var data = """
                    {
@@ -36,7 +28,7 @@ for (var i = 0; i < 100; i++)
         while (true)
         {
             watch.Restart();
-            await journal.WriteJournalEntryAsync(data).ConfigureAwait(false);
+            await database.InsertDocumentAsync(data).ConfigureAwait(false);
             Console.WriteLine($"Client write completed in {watch.ElapsedMilliseconds} ms");
             await Task.Delay(1).ConfigureAwait(false);
         }
@@ -44,3 +36,4 @@ for (var i = 0; i < 100; i++)
 }
 
 await Task.WhenAll(tasks);
+await database.ShutdownAsync();
