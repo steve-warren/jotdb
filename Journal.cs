@@ -15,19 +15,25 @@ public sealed class Journal : IAsyncDisposable
 {
     private ulong _journalIdentitySeed;
     private readonly AppendOnlyFile _file;
-    private readonly Channel<JournalEntry> _channel;
+    private readonly Channel<JournalEntry> _pendingJournalWrites;
+    private readonly ChannelWriter<JournalEntry> _pendingDocumentCollectionWrites;
 
-    public Journal(ulong journalIdentitySeed, string path)
+    public Journal(ulong journalIdentitySeed,
+        string path,
+        ChannelWriter<JournalEntry> pendingDocumentCollectionWrites)
     {
         _journalIdentitySeed = journalIdentitySeed;
         _file = new AppendOnlyFile(path);
 
-        _channel = Channel.CreateBounded<JournalEntry>(new BoundedChannelOptions(5)
+        _pendingJournalWrites = Channel.CreateBounded<JournalEntry>(new BoundedChannelOptions(5)
         {
             SingleReader = true,
             SingleWriter = false,
-            AllowSynchronousContinuations = true
+            AllowSynchronousContinuations = true,
+            FullMode = BoundedChannelFullMode.Wait
         });
+
+        _pendingDocumentCollectionWrites = pendingDocumentCollectionWrites;
     }
 
     /// <summary>
@@ -36,7 +42,9 @@ public sealed class Journal : IAsyncDisposable
     /// <param name="data">The data to be written in the journal.</param>
     /// <param name="operation"></param>
     /// <returns>A task that represents the asynchronous write operation.</returns>
-    public async Task<ulong> WriteJournalEntryAsync(ReadOnlyMemory<byte> data, DatabaseOperation operation)
+    public async Task<JournalEntry> WriteJournalEntryAsync(
+        ReadOnlyMemory<byte> data,
+        DatabaseOperation operation)
     {
         var entry = new JournalEntry
         {
@@ -44,17 +52,18 @@ public sealed class Journal : IAsyncDisposable
             Operation = operation
         };
 
-        await _channel.Writer.WriteAsync(entry).ConfigureAwait(false);
+        await _pendingJournalWrites.Writer.WriteAsync(entry).ConfigureAwait(false);
 
         await entry.WriteCompletionTask.ConfigureAwait(false);
 
-        return entry.Identity;
+        return entry;
     }
 
     public async Task ProcessJournalEntriesAsync(CancellationToken cancellationToken)
     {
-        var reader = _channel.Reader;
+        var reader = _pendingJournalWrites.Reader;
         var completionQueue = new Queue<JournalEntry>();
+        var dataFileQueue = new Queue<JournalEntry>();
         var watch = new Stopwatch();
 
         // blocks until signaled that the channel has data
@@ -81,7 +90,13 @@ public sealed class Journal : IAsyncDisposable
 
             // mark all journal entries as written to disk
             while (completionQueue.TryDequeue(out var entry))
+            {
                 entry.FinishWriting();
+                dataFileQueue.Enqueue(entry);
+            }
+
+            while (dataFileQueue.TryDequeue(out var entry))
+                await _pendingDocumentCollectionWrites.WriteAsync(entry).ConfigureAwait(false);
         }
     }
 
