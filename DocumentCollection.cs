@@ -23,7 +23,7 @@ public class DocumentCollection
    {
       var reader = _journalEntries.Reader;
 
-      await foreach (var entry in reader.ReadAllAsync(CancellationToken.None).ConfigureAwait(false))
+      await foreach (var entry in reader.ReadAllAsync(cancellationToken).ConfigureAwait(false))
       {
          if (cancellationToken.IsCancellationRequested)
             break;
