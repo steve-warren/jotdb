@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Threading.Channels;
 
 namespace JotDB;
@@ -23,14 +24,28 @@ public class DocumentCollection
    {
       var reader = _journalEntries.Reader;
 
+      using var fs = File.OpenHandle(
+         "documents.jotdb",
+         FileMode.Append,
+         FileAccess.Write,
+         FileShare.Read, FileOptions.Asynchronous);
+
+      long offset = 0;
+      var watch = new Stopwatch();
+
       await foreach (var entry in reader.ReadAllAsync(cancellationToken).ConfigureAwait(false))
       {
          if (cancellationToken.IsCancellationRequested)
             break;
 
-         Console.WriteLine($"writing entry {entry.Identity} to the data file.");
+         watch.Restart();
+         await RandomAccess.WriteAsync(fs, entry.Data, offset, cancellationToken).ConfigureAwait(false);
+
+         Console.WriteLine($"data {entry.Identity} written in {watch.ElapsedMilliseconds}ms");
+
+         offset += entry.Data.Length;
       }
-      
+
       Console.WriteLine("Pending document write processor canceled.");
    }
 }

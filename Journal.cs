@@ -17,7 +17,8 @@ public sealed class Journal : IAsyncDisposable
     private readonly AppendOnlyFile _file;
     private readonly Channel<JournalEntry> _pendingJournalWrites;
     private readonly ChannelWriter<JournalEntry> _pendingDocumentCollectionWrites;
-
+    private readonly byte[] _buffer = new byte[13];
+    
     public Journal(ulong journalIdentitySeed,
         string path,
         ChannelWriter<JournalEntry> pendingDocumentCollectionWrites)
@@ -102,14 +103,11 @@ public sealed class Journal : IAsyncDisposable
 
     private void WriteJournalEntry(JournalEntry entry)
     {
-        Span<byte> buffer = stackalloc byte[13]; // ulong + int32 + byte
+        MemoryMarshal.Write(_buffer[..8], entry.Identity);
+        MemoryMarshal.Write(_buffer[8..12], entry.Data.Length);
+        MemoryMarshal.Write(_buffer[12..], entry.Operation);
 
-        MemoryMarshal.Write(buffer[..8], entry.Identity);
-        MemoryMarshal.Write(buffer[8..12], entry.Data.Length);
-        MemoryMarshal.Write(buffer[12..], entry.Operation);
-
-        _file.Write(buffer);
-        _file.Write(entry.Data.Span);
+        _file.Write(_buffer, entry.Data);
     }
 
     public ValueTask DisposeAsync()
