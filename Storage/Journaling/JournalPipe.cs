@@ -1,11 +1,11 @@
 using System.Threading.Channels;
 
-namespace JotDB;
+namespace JotDB.Storage.Journaling;
 
-public sealed class JournalPipeline
+public sealed class JournalPipe
 {
-    private readonly Channel<JournalEntry> _channel =
-        Channel.CreateBounded<JournalEntry>(new BoundedChannelOptions(128)
+    private readonly Channel<DocumentOperation> _channel =
+        Channel.CreateBounded<DocumentOperation>(new BoundedChannelOptions(128)
     {
         SingleReader = true,
         SingleWriter = false,
@@ -13,22 +13,22 @@ public sealed class JournalPipeline
         FullMode = BoundedChannelFullMode.Wait
     });
 
-    public async ValueTask<JournalEntry> SendAsync(
+    public async ValueTask<DocumentOperation> SendAsync(
         ReadOnlyMemory<byte> data,
-        DatabaseOperation operation,
+        DocumentOperationType operationType,
         CancellationToken cancellationToken)
     {
-        var entry = new JournalEntry
+        var operation = new DocumentOperation
         {
             Data = data,
-            Operation = operation
+            OperationType = operationType
         };
 
         await _channel.Writer
-            .WriteAsync(entry, cancellationToken)
+            .WriteAsync(operation, cancellationToken)
             .ConfigureAwait(false);
 
-        return entry;
+        return operation;
     }
 
     /// <summary>
@@ -38,7 +38,7 @@ public sealed class JournalPipeline
     /// <param name="cancellationToken">A cancellation token that can be used to cancel the operation.</param>
     /// <returns>The number of journal entries received and stored into the buffer.</returns>
     public async Task<int> WaitAndReceiveAsync(
-        Memory<JournalEntry> buffer,
+        Memory<DocumentOperation> buffer,
         CancellationToken cancellationToken)
     {
         var reader = _channel.Reader;

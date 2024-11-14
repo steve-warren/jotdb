@@ -3,7 +3,7 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using Microsoft.Win32.SafeHandles;
 
-namespace JotDB;
+namespace JotDB.Storage.Journaling;
 
 public sealed class Journal : IDisposable
 {
@@ -42,7 +42,7 @@ public sealed class Journal : IDisposable
 
     public string Path { get; }
 
-    public void WriteToDisk(ReadOnlySpan<JournalEntry> entries)
+    public void WriteToDisk(ReadOnlySpan<DocumentOperation> entries)
     {
         var buffers = new ReadOnlyMemory<byte>[entries.Length * 2];
         var rented = new List<byte[]>();
@@ -85,11 +85,11 @@ public sealed class Journal : IDisposable
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private static void SerializeJournalEntry(
-        JournalEntry entry,
+        DocumentOperation entry,
         Span<byte> buffer)
     {
         MemoryMarshal.Write(buffer[..8], entry.Identity);
         MemoryMarshal.Write(buffer[8..12], entry.Data.Length);
-        MemoryMarshal.Write(buffer[12..], entry.Operation);
+        MemoryMarshal.Write(buffer[12..], entry.OperationType);
     }
 }

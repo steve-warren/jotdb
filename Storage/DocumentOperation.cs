@@ -1,6 +1,6 @@
-namespace JotDB;
+namespace JotDB.Storage;
 
-public sealed class JournalEntry
+public sealed class DocumentOperation
 {
     private readonly TaskCompletionSource _tcs = new();
 
@@ -9,7 +9,7 @@ public sealed class JournalEntry
     /// The task completes when the entry has been successfully written and flushed to the durable storage.
     /// </summary>
     public ReadOnlyMemory<byte> Data { get; init; }
-    public DatabaseOperation Operation { get; init; }
+    public DocumentOperationType OperationType { get; init; }
     public ulong Identity { get; private set; }
 
     /// <summary>

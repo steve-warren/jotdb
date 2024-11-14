@@ -1,19 +1,23 @@
 using System.Diagnostics;
+using JotDB.Storage.Data;
 
-namespace JotDB;
+namespace JotDB.Storage.Journaling;
 
-public sealed class JournalPipelineReceiver
+public sealed class JournalPipeHandler
 {
-    private readonly JournalPipeline _pipeline;
+    private readonly JournalPipe _pipe;
+    private readonly DataPipe _dataPipe;
     private readonly Journal _journal;
-    private Task _backgroundTask;
     private readonly CancellationTokenSource _cancellationTokenSource = new();
-
-    public JournalPipelineReceiver(
-        JournalPipeline pipeline,
+    private Task _backgroundTask;
+    
+    public JournalPipeHandler(
+        JournalPipe pipe,
+        DataPipe dataPipe,
         Journal journal)
     {
-        _pipeline = pipeline;
+        _pipe = pipe;
+        _dataPipe = dataPipe;
         _journal = journal;
         _backgroundTask = Task.CompletedTask;
     }
@@ -31,21 +35,31 @@ public sealed class JournalPipelineReceiver
         return _backgroundTask;
     }
 
+    /// <summary>
+    /// Asynchronously runs and processes the journal entries from the journal pipeline
+    /// until cancellation is requested.
+    /// </summary>
+    /// <returns>A task representing the asynchronous operation.</returns>
     private async Task RunAsync()
     {
-        var buffer = new JournalEntry[8];
+        var buffer = new DocumentOperation[8];
 
         while (!_cancellationTokenSource.IsCancellationRequested)
         {
             // wait for journal entries to be written to the pipeline.
-            var count = await _pipeline
+            var count = await _pipe
                 .WaitAndReceiveAsync(buffer.AsMemory(), _cancellationTokenSource.Token)
                 .ConfigureAwait(false);
 
             Console.WriteLine($"writing {count} journal entries to disk.");
 
+            var span = buffer.AsSpan(0, count);
+
             // write the journal entries to disk.
-            _journal.WriteToDisk(buffer.AsSpan(0, count));
+            _journal.WriteToDisk(span);
+            
+            // write the journal entries to the data file.
+            _dataPipe.Send(span);
         }
     }
 }

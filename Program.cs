@@ -42,6 +42,7 @@ for (var i = 0; i < 1; i++)
             watch.Restart();
             var transactionId = await database.InsertDocumentAsync(data).ConfigureAwait(false);
             Console.WriteLine($"Client write {transactionId} completed in {watch.ElapsedMilliseconds} ms");
+            await Task.Delay(1000);
         }
     }
 }
