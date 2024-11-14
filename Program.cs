@@ -26,7 +26,7 @@ var data = """
 
 var tasks = new List<Task>();
 
-for (var i = 0; i < 8; i++)
+for (var i = 0; i < 1; i++)
 {
     var id = i;
 

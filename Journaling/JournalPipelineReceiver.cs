@@ -2,14 +2,14 @@ using System.Diagnostics;
 
 namespace JotDB;
 
-public sealed class JournalWriterBackgroundTask
+public sealed class JournalPipelineReceiver
 {
     private readonly JournalPipeline _pipeline;
     private readonly Journal _journal;
     private Task _backgroundTask;
     private readonly CancellationTokenSource _cancellationTokenSource = new();
 
-    public JournalWriterBackgroundTask(
+    public JournalPipelineReceiver(
         JournalPipeline pipeline,
         Journal journal)
     {
@@ -20,13 +20,13 @@ public sealed class JournalWriterBackgroundTask
 
     public void Start()
     {
-        Debug.WriteLine("starting journal writer background task.");
+        Debug.WriteLine("starting journal pipeline receiver.");
         _backgroundTask = RunAsync();
     }
 
     public Task StopAsync()
     {
-        Debug.WriteLine("stopping journal writer background task.");
+        Debug.WriteLine("stopping journal pipeline receiver.");
         _cancellationTokenSource.Cancel();
         return _backgroundTask;
     }
@@ -37,12 +37,14 @@ public sealed class JournalWriterBackgroundTask
 
         while (!_cancellationTokenSource.IsCancellationRequested)
         {
+            // wait for journal entries to be written to the pipeline.
             var count = await _pipeline
                 .WaitAndReceiveAsync(buffer.AsMemory(), _cancellationTokenSource.Token)
                 .ConfigureAwait(false);
 
             Console.WriteLine($"writing {count} journal entries to disk.");
 
+            // write the journal entries to disk.
             _journal.WriteToDisk(buffer.AsSpan(0, count));
         }
     }

@@ -1,6 +1,6 @@
 namespace JotDB;
 
-public class JournalEntry
+public sealed class JournalEntry
 {
     private readonly TaskCompletionSource _tcs = new();
 

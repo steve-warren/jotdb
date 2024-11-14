@@ -8,19 +8,39 @@ namespace JotDB;
 public sealed class Journal : IDisposable
 {
     private readonly SafeFileHandle _file;
-    private ulong _journalIdentitySeed;
+    private ulong _identity;
     private long _offset;
 
-    public Journal(ulong journalIdentitySeed,
-        string path)
+    public static Journal Open(string path)
     {
+        using var file = File.Open(path, new FileStreamOptions
+        {
+            Access = FileAccess.Read,
+            Mode = FileMode.OpenOrCreate,
+            Share = FileShare.ReadWrite
+        });
+
+        return new Journal(
+            path: path,
+            offset: file.Length);
+    }
+
+    private Journal(
+        string path,
+        long offset)
+    {
+        Path = path;
+        _offset = offset;
+
         _file = File.OpenHandle(
             path: path,
             mode: FileMode.Append,
             access: FileAccess.Write,
-            share: FileShare.None,
+            share: FileShare.Read,
             FileOptions.WriteThrough);
     }
+
+    public string Path { get; }
 
     public void WriteToDisk(ReadOnlySpan<JournalEntry> entries)
     {
@@ -32,7 +52,7 @@ public sealed class Journal : IDisposable
         {
             var entry = entries[i];
 
-            entry.AssignIdentity(++_journalIdentitySeed);
+            entry.AssignIdentity(++_identity);
 
             var buffer = ArrayPool<byte>.Shared.Rent(13);
             rented.Add(buffer);

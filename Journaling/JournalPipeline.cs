@@ -13,7 +13,7 @@ public sealed class JournalPipeline
         FullMode = BoundedChannelFullMode.Wait
     });
 
-    public async Task<JournalEntry> SendAsync(
+    public async ValueTask<JournalEntry> SendAsync(
         ReadOnlyMemory<byte> data,
         DatabaseOperation operation,
         CancellationToken cancellationToken)
@@ -31,6 +31,12 @@ public sealed class JournalPipeline
         return entry;
     }
 
+    /// <summary>
+    /// Waits for and receives journal entries asynchronously into the provided buffer.
+    /// </summary>
+    /// <param name="buffer">The memory buffer where the received journal entries will be stored.</param>
+    /// <param name="cancellationToken">A cancellation token that can be used to cancel the operation.</param>
+    /// <returns>The number of journal entries received and stored into the buffer.</returns>
     public async Task<int> WaitAndReceiveAsync(
         Memory<JournalEntry> buffer,
         CancellationToken cancellationToken)
