@@ -4,49 +4,56 @@ namespace JotDB;
 
 public class Database
 {
-    private Journal? _journal;
+    private readonly Journal _journal;
     private DocumentCollection _documentCollection;
-    private Task? _journalWriterBackgroundTask;
     private Task? _documentWriterBackgroundTask;
+    private readonly JournalPipeline _pipeline;
+    private readonly JournalWriterBackgroundTask _journalWriterBackgroundTask;
 
     private CancellationTokenSource? _cancellationTokenSource;
-    
+
     public Database()
     {
+        _journal = new Journal(0, "journal.jotdb");
+        _pipeline = new JournalPipeline();
+        _journalWriterBackgroundTask = new JournalWriterBackgroundTask(_pipeline, _journal);
     }
-    
+
     public async Task<ulong> InsertDocumentAsync(ReadOnlyMemory<byte> document)
     {
-        var journalEntry = await _journal.WriteJournalEntryAsync(
+        var entry = await _pipeline.SendAsync(
             document,
-            DatabaseOperation.Insert).ConfigureAwait(false);
+            DatabaseOperation.Insert,
+            CancellationToken.None).ConfigureAwait(false);
 
-        return journalEntry.Identity;
+        await entry.WaitUntilWriteToDiskCompletesAsync(CancellationToken.None).ConfigureAwait(false);
+
+        return entry.Identity;
     }
 
     public void Start()
     {
-        Debug.WriteLine("starting database.");
+        Console.WriteLine("starting jotdb database.");
         _cancellationTokenSource = new CancellationTokenSource();
-        _documentCollection = new DocumentCollection("documents.jot");
-        _journal = new Journal(0, "journal.wal", _documentCollection.PendingDocumentWriteQueue);
-        _journalWriterBackgroundTask = _journal.ProcessJournalEntriesAsync(_cancellationTokenSource.Token);
+        _documentCollection = new DocumentCollection("documents.jotdb");
+
+        _journalWriterBackgroundTask.Start();
+
         _documentWriterBackgroundTask =
             _documentCollection.ProcessPendingDocumentWriteOperationsAsync(_cancellationTokenSource.Token);
     }
 
     public async Task ShutdownAsync()
     {
-        Debug.WriteLine("shutting down database.");
+        Console.WriteLine("shutting down database.");
         await _cancellationTokenSource.CancelAsync().ConfigureAwait(false);
-        await _journalWriterBackgroundTask.ConfigureAwait(ConfigureAwaitOptions.SuppressThrowing);
         await _documentWriterBackgroundTask.ConfigureAwait(ConfigureAwaitOptions.SuppressThrowing);
-        await _journal.DisposeAsync().ConfigureAwait(false);
+        _journal.Dispose();
     }
 
     public void DeleteJournal()
     {
         Debug.WriteLine("deleting journal file.");
-        File.Delete("journal.wal");
+        File.Delete("journal.jotdb");
     }
 }

@@ -26,8 +26,8 @@ public class DocumentCollection
 
       using var fs = File.OpenHandle(
          "documents.jotdb",
-         FileMode.Append,
-         FileAccess.Write,
+         FileMode.OpenOrCreate,
+         FileAccess.ReadWrite,
          FileShare.Read, FileOptions.Asynchronous);
 
       long offset = 0;

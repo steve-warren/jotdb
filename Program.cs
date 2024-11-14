@@ -12,12 +12,6 @@ Console.CancelKeyPress += (sender, e) =>
     database.ShutdownAsync().Wait();
 };
 
-AppDomain.CurrentDomain.ProcessExit += (sender, e) =>
-{
-    cancellationTokenSource.Cancel();
-    database.ShutdownAsync().Wait();
-};
-
 database.DeleteJournal();
 database.Start();
 
