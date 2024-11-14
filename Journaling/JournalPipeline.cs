@@ -5,7 +5,7 @@ namespace JotDB;
 public sealed class JournalPipeline
 {
     private readonly Channel<JournalEntry> _channel =
-        Channel.CreateBounded<JournalEntry>(new BoundedChannelOptions(5)
+        Channel.CreateBounded<JournalEntry>(new BoundedChannelOptions(128)
     {
         SingleReader = true,
         SingleWriter = false,

@@ -33,7 +33,7 @@ public sealed class JournalWriterBackgroundTask
 
     private async Task RunAsync()
     {
-        var buffer = new JournalEntry[5];
+        var buffer = new JournalEntry[8];
 
         while (!_cancellationTokenSource.IsCancellationRequested)
         {
@@ -41,7 +41,7 @@ public sealed class JournalWriterBackgroundTask
                 .WaitAndReceiveAsync(buffer.AsMemory(), _cancellationTokenSource.Token)
                 .ConfigureAwait(false);
 
-            Debug.WriteLine($"writing {count} journal entries to disk.");
+            Console.WriteLine($"writing {count} journal entries to disk.");
 
             _journal.WriteToDisk(buffer.AsSpan(0, count));
         }

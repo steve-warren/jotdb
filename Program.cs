@@ -26,7 +26,7 @@ var data = """
 
 var tasks = new List<Task>();
 
-for (var i = 0; i < 4; i++)
+for (var i = 0; i < 8; i++)
 {
     var id = i;
 
@@ -42,7 +42,6 @@ for (var i = 0; i < 4; i++)
             watch.Restart();
             var transactionId = await database.InsertDocumentAsync(data).ConfigureAwait(false);
             Console.WriteLine($"Client write {transactionId} completed in {watch.ElapsedMilliseconds} ms");
-            await Task.Delay(1).ConfigureAwait(false);
         }
     }
 }
