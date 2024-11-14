@@ -41,6 +41,8 @@ public sealed class JournalWriterBackgroundTask
                 .WaitAndReceiveAsync(buffer.AsMemory(), _cancellationTokenSource.Token)
                 .ConfigureAwait(false);
 
+            Debug.WriteLine($"writing {count} journal entries to disk.");
+
             _journal.WriteToDisk(buffer.AsSpan(0, count));
         }
     }

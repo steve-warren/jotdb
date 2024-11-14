@@ -16,17 +16,29 @@ public sealed class Journal : IDisposable
     {
         _file = File.OpenHandle(
             path: path,
-            mode: FileMode.OpenOrCreate,
-            access: FileAccess.ReadWrite,
-            share: FileShare.Read);
+            mode: FileMode.Append,
+            access: FileAccess.Write,
+            share: FileShare.None);
+    }
+
+    public void WriteToDisk(JournalEntry entry)
+    {
+        entry.AssignIdentity(++_journalIdentitySeed);
+        var buffer = new byte[13];
+        SerializeJournalEntry(entry, buffer);
+
+        RandomAccess.Write(_file, [buffer, entry.Data], _offset);
+
+        _offset += (13 + entry.Data.Length);
     }
 
     public void WriteToDisk(ReadOnlySpan<JournalEntry> entries)
     {
         var buffers = new ReadOnlyMemory<byte>[entries.Length * 2];
         var rented = new List<byte[]>();
+        var j = 0;
 
-        for (var i = 0; i < entries.Length; i++)
+        for (var i = 0; i < entries.Length; i++, j++)
         {
             var entry = entries[i];
 
@@ -39,11 +51,13 @@ public sealed class Journal : IDisposable
 
             SerializeJournalEntry(entry, span);
 
-            buffers[i] = buffer.AsMemory(0, 13);
-            buffers[i + 1] = entry.Data;
+            buffers[j] = buffer.AsMemory(0, 13);
+            j++;
+            buffers[j] = entry.Data;
         }
 
         RandomAccess.Write(_file, buffers, _offset);
+        //RandomAccess.FlushToDisk(_file);
 
         foreach (var entry in entries)
         {

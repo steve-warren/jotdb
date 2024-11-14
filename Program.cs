@@ -12,7 +12,6 @@ Console.CancelKeyPress += (sender, e) =>
     database.ShutdownAsync().Wait();
 };
 
-database.DeleteJournal();
 database.Start();
 
 var data = """
@@ -41,9 +40,9 @@ for (var i = 0; i < 4; i++)
         while (!cancellationTokenSource.IsCancellationRequested)
         {
             watch.Restart();
-            await database.InsertDocumentAsync(data).ConfigureAwait(false);
-            Console.WriteLine($"Client write completed in {watch.ElapsedMilliseconds} ms");
-            await Task.Delay(1000).ConfigureAwait(false);
+            var transactionId = await database.InsertDocumentAsync(data).ConfigureAwait(false);
+            Console.WriteLine($"Client write {transactionId} completed in {watch.ElapsedMilliseconds} ms");
+            await Task.Delay(1).ConfigureAwait(false);
         }
     }
 }

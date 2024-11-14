@@ -14,7 +14,7 @@ public class Database
 
     public Database()
     {
-        _journal = new Journal(0, "journal.jotdb");
+        _journal = new Journal(0, "journal.txt");
         _pipeline = new JournalPipeline();
         _journalWriterBackgroundTask = new JournalWriterBackgroundTask(_pipeline, _journal);
     }
