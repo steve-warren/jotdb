@@ -32,7 +32,7 @@ var tasks = new List<Task>();
 var numberOfDocuments = 0;
 var watch = Stopwatch.StartNew();
 
-for (var i = 0; i < 1; i++)
+for (var i = 0; i < 8; i++)
 {
     var id = i;
 

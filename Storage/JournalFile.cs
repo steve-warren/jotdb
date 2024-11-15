@@ -1,17 +1,24 @@
 using System.Buffers;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Threading.Channels;
 using Microsoft.Win32.SafeHandles;
 
-namespace JotDB.Storage.Journaling;
+namespace JotDB.Storage;
 
-public sealed class Journal : IDisposable
+public sealed class JournalFile : IDisposable
 {
+    private const int JOURNAL_FLUSH_BUFFER_SIZE = 8;
+    private const int JOURNAL_MEMORY_BUFFER_SIZE = 128;
+
+    private readonly Channel<DocumentOperation> _channel;
+    private readonly DocumentOperation[] _flushBuffer;
+
     private readonly SafeFileHandle _file;
     private ulong _identity;
     private long _offset;
 
-    public static Journal Open(
+    public static JournalFile Open(
         string path)
     {
         using var file = File.Open(path, new FileStreamOptions
@@ -21,12 +28,12 @@ public sealed class Journal : IDisposable
             Share = FileShare.ReadWrite
         });
 
-        return new Journal(
+        return new JournalFile(
             path: path,
             offset: file.Length);
     }
 
-    private Journal(
+    private JournalFile(
         string path,
         long offset)
     {
@@ -38,11 +45,68 @@ public sealed class Journal : IDisposable
             mode: FileMode.Append,
             access: FileAccess.Write,
             share: FileShare.Read);
+
+        _channel = Channel.CreateBounded<DocumentOperation>(new BoundedChannelOptions(JOURNAL_MEMORY_BUFFER_SIZE)
+        {
+            SingleReader = true,
+            SingleWriter = false,
+            AllowSynchronousContinuations = true,
+            FullMode = BoundedChannelFullMode.Wait
+        });
+        _flushBuffer = new DocumentOperation[JOURNAL_FLUSH_BUFFER_SIZE];
     }
 
     public string Path { get; }
 
-    public void WriteToDisk(
+    public void Dispose()
+    {
+        _channel.Writer.Complete();
+        _file.Dispose();
+    }
+
+    public async Task<ulong> WriteAsync(
+        ReadOnlyMemory<byte> data,
+        DocumentOperationType operationType)
+    {
+        var operation = new DocumentOperation
+        {
+            Data = data,
+            OperationType = operationType
+        };
+
+        await _channel.Writer
+            .WriteAsync(operation)
+            .ConfigureAwait(false);
+
+        await operation
+            .WaitUntilWriteToDiskCompletesAsync(CancellationToken.None)
+            .ConfigureAwait(false);
+
+        return operation.OperationId;
+    }
+
+    public async Task<bool> WaitToFlushAsync(CancellationToken cancellationToken)
+    {
+        if (!await _channel.Reader.WaitToReadAsync(cancellationToken).ConfigureAwait(false))
+            return false;
+
+        var reader = _channel.Reader;
+        var i = 0;
+
+        for (; i < _flushBuffer.Length; i++)
+        {
+            if (!reader.TryRead(out var operation)) break;
+            _flushBuffer[i] = operation;
+        }
+
+        var span = _flushBuffer.AsSpan(start: 0, length: i);
+
+        WriteToFile(span);
+
+        return true;
+    }
+
+    private void WriteToFile(
         ReadOnlySpan<DocumentOperation> documentOperations)
     {
         var buffers = new ReadOnlyMemory<byte>[documentOperations.Length * 2];
@@ -77,11 +141,6 @@ public sealed class Journal : IDisposable
 
         foreach (var buffer in rented)
             ArrayPool<byte>.Shared.Return(buffer);
-    }
-
-    public void Dispose()
-    {
-        _file.Dispose();
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
