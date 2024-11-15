@@ -5,7 +5,7 @@ namespace JotDB;
 public class Database
 {
     private readonly JournalFile _journal;
-    private readonly List<IBackgroundWorker> _backgroundWorkers = [];
+    private readonly List<BackgroundWorker> _backgroundWorkers = [];
 
     private readonly CancellationTokenSource _cancellationTokenSource;
 
@@ -21,7 +21,7 @@ public class Database
         string name,
         Func<Database, CancellationToken, Task> work)
     {
-        var worker = new BackgroundWorker<Database>(name, work, this);
+        var worker = new BackgroundWorker(this, name, work);
         _backgroundWorkers.Add(worker);
     }
 

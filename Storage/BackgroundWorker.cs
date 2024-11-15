@@ -2,20 +2,22 @@ using System.Diagnostics;
 
 namespace JotDB.Storage;
 
-public sealed class BackgroundWorker<TArg> : IBackgroundWorker where TArg : class
+public sealed class BackgroundWorker
 {
     private readonly CancellationTokenSource _cts = new();
-    private readonly TArg _arg;
-    private readonly Func<TArg, CancellationToken, Task> _backgroundTaskDelegate;
+    private readonly Database _database;
+    private readonly Func<Database, CancellationToken, Task> _backgroundTaskDelegate;
+
     private Task _backgroundTask = Task.CompletedTask;
 
-    public BackgroundWorker(string name,
-        Func<TArg, CancellationToken, Task> backgroundTask,
-        TArg arg)
+    public BackgroundWorker(
+        Database database,
+        string name,
+        Func<Database, CancellationToken, Task> backgroundTask)
     {
-        Name = name;
+        _database = database;
         _backgroundTaskDelegate = backgroundTask;
-        _arg = arg;
+        Name = name;
     }
 
     public string Name { get; }
@@ -25,7 +27,7 @@ public sealed class BackgroundWorker<TArg> : IBackgroundWorker where TArg : clas
         Debug.WriteLine($"Starting background worker '{Name}'");
 
         _backgroundTask = _backgroundTaskDelegate(
-            _arg,
+            _database,
             _cts.Token);
     }
 
