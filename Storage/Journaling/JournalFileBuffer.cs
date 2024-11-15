@@ -2,10 +2,7 @@ using System.Threading.Channels;
 
 namespace JotDB.Storage.Journaling;
 
-/// <summary>
-/// Handles asynchronous operations for journaling document changes using a channel for communication.
-/// </summary>
-public sealed class JournalPipe
+public sealed class JournalFileBuffer
 {
     private readonly Channel<DocumentOperation> _channel =
         Channel.CreateBounded<DocumentOperation>(new BoundedChannelOptions(128)
@@ -15,6 +12,11 @@ public sealed class JournalPipe
         AllowSynchronousContinuations = true,
         FullMode = BoundedChannelFullMode.Wait
     });
+
+    public void Close()
+    {
+        _channel.Writer.Complete();
+    }
 
     public async ValueTask<DocumentOperation> WriteAsync(
         ReadOnlyMemory<byte> data,
@@ -35,10 +37,8 @@ public sealed class JournalPipe
     }
 
     public ValueTask<bool> WaitToReadAsync(
-        CancellationToken cancellationToken)
-    {
-        return _channel.Reader.WaitToReadAsync(cancellationToken);
-    }
+        CancellationToken cancellationToken) =>
+        _channel.Reader.WaitToReadAsync(cancellationToken);
 
     public int Read(
         Span<DocumentOperation> buffer)

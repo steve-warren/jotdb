@@ -1,5 +1,5 @@
 using JotDB.Storage;
-using JotDB.Storage.Data;
+using JotDB.Storage.Documents;
 using JotDB.Storage.Journaling;
 
 namespace JotDB;
@@ -7,25 +7,30 @@ namespace JotDB;
 public class Database
 {
     private readonly Journal _journal;
-    private readonly JournalPipe _journalPipe;
-    private readonly DataPipe _dataPipe;
-    private readonly JournalPipeHandler _journalPipeHandler;
+    private readonly JournalFileBuffer _journalFileBuffer;
+    private readonly JournalPipeReader _journalPipeReader;
 
-    private CancellationTokenSource? _cancellationTokenSource;
+    private readonly DocumentCollection _documentCollection;
+    private readonly DocumentCollectionFileBuffer _documentCollectionFileBuffer;
+
+    private readonly CancellationTokenSource _cancellationTokenSource;
 
     public Database()
     {
         _journal = Journal.Open("journal.txt");
-        _journalPipe = new JournalPipe();
-        _dataPipe = new DataPipe();
-        _journalPipeHandler = new JournalPipeHandler(_journalPipe, _dataPipe, _journal);
+        _documentCollection = DocumentCollection.Open("documents.txt");
+        _journalFileBuffer = new JournalFileBuffer();
+        _documentCollectionFileBuffer = new DocumentCollectionFileBuffer();
+        _journalPipeReader = new JournalPipeReader(_journalFileBuffer, _documentCollectionFileBuffer, _journal);
+        
+        _cancellationTokenSource = new CancellationTokenSource();
     }
 
     public async Task<ulong> InsertDocumentAsync(ReadOnlyMemory<byte> document)
     {
         // sends the document to the journal pipeline to be written to disk.
         // this call only blocks when the pipeline is full.
-        var entry = await _journalPipe.WriteAsync(
+        var entry = await _journalFileBuffer.WriteAsync(
             document,
             DocumentOperationType.Insert,
             CancellationToken.None).ConfigureAwait(false);
@@ -35,9 +40,7 @@ public class Database
         await entry.WaitUntilWriteToDiskCompletesAsync(CancellationToken.None)
                 .ConfigureAwait(false);
 
-        // send to the data file pipeline without waiting
-
-        return entry.Identity;
+        return entry.OperationId;
     }
 
     public Task DeleteDocumentAsync(ulong documentId)
@@ -48,15 +51,16 @@ public class Database
     public void Start()
     {
         Console.WriteLine("starting jotdb database.");
-        _cancellationTokenSource = new CancellationTokenSource();
 
-        _journalPipeHandler.Start();
+        _journalPipeReader.Start();
     }
 
     public async Task ShutdownAsync()
     {
         Console.WriteLine("shutting down database.");
         await _cancellationTokenSource.CancelAsync().ConfigureAwait(false);
+        _journalFileBuffer.Close();
+        _documentCollectionFileBuffer.Close();
         _journal.Dispose();
     }
 }

@@ -2,7 +2,7 @@ using System.Diagnostics;
 
 namespace JotDB;
 
-public class Page(uint id)
+public class DataPage(uint id)
 {
     public const uint PAGE_SIZE = 4096; // 4 KiB
 

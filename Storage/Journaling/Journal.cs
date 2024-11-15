@@ -11,7 +11,8 @@ public sealed class Journal : IDisposable
     private ulong _identity;
     private long _offset;
 
-    public static Journal Open(string path)
+    public static Journal Open(
+        string path)
     {
         using var file = File.Open(path, new FileStreamOptions
         {
@@ -41,35 +42,36 @@ public sealed class Journal : IDisposable
 
     public string Path { get; }
 
-    public void WriteToDisk(ReadOnlySpan<DocumentOperation> entries)
+    public void WriteToDisk(
+        ReadOnlySpan<DocumentOperation> documentOperations)
     {
-        var buffers = new ReadOnlyMemory<byte>[entries.Length * 2];
+        var buffers = new ReadOnlyMemory<byte>[documentOperations.Length * 2];
         var rented = new List<byte[]>();
         var j = 0;
 
-        for (var i = 0; i < entries.Length; i++, j++)
+        for (var i = 0; i < documentOperations.Length; i++, j++)
         {
-            var entry = entries[i];
+            var documentOperation = documentOperations[i];
 
-            entry.AssignIdentity(++_identity);
+            documentOperation.AssignOperationId(++_identity);
 
             var buffer = ArrayPool<byte>.Shared.Rent(13);
             rented.Add(buffer);
 
             var span = buffer.AsSpan(0, 13);
 
-            SerializeJournalEntry(entry, span);
+            SerializeJournalEntry(documentOperation, span);
 
             buffers[j] = buffer.AsMemory(0, 13);
             j++;
-            buffers[j] = entry.Data;
+            buffers[j] = documentOperation.Data;
         }
 
         RandomAccess.Write(_file, buffers, _offset);
 
-        foreach (var entry in entries)
+        foreach (var entry in documentOperations)
         {
-            entry.CompleteWriteToDisk();
+            entry.CompleteWriteToJournal();
             _offset += 13 + entry.Data.Length;
         }
 
@@ -87,7 +89,7 @@ public sealed class Journal : IDisposable
         DocumentOperation entry,
         Span<byte> buffer)
     {
-        MemoryMarshal.Write(buffer[..8], entry.Identity);
+        MemoryMarshal.Write(buffer[..8], entry.OperationId);
         MemoryMarshal.Write(buffer[8..12], entry.Data.Length);
         MemoryMarshal.Write(buffer[12..], entry.OperationType);
     }

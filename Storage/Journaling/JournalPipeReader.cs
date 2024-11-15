@@ -1,23 +1,23 @@
 using System.Diagnostics;
-using JotDB.Storage.Data;
+using JotDB.Storage.Documents;
 
 namespace JotDB.Storage.Journaling;
 
-public sealed class JournalPipeHandler
+public sealed class JournalPipeReader
 {
-    private readonly JournalPipe _pipe;
-    private readonly DataPipe _dataPipe;
+    private readonly JournalFileBuffer _fileBuffer;
+    private readonly DocumentCollectionFileBuffer _documentCollectionFileBuffer;
     private readonly Journal _journal;
     private readonly CancellationTokenSource _cancellationTokenSource = new();
     private Task _backgroundTask;
 
-    public JournalPipeHandler(
-        JournalPipe pipe,
-        DataPipe dataPipe,
+    public JournalPipeReader(
+        JournalFileBuffer fileBuffer,
+        DocumentCollectionFileBuffer documentCollectionFileBuffer,
         Journal journal)
     {
-        _pipe = pipe;
-        _dataPipe = dataPipe;
+        _fileBuffer = fileBuffer;
+        _documentCollectionFileBuffer = documentCollectionFileBuffer;
         _journal = journal;
         _backgroundTask = Task.CompletedTask;
     }
@@ -42,14 +42,16 @@ public sealed class JournalPipeHandler
     /// <returns>A task representing the asynchronous operation.</returns>
     private async Task RunAsync()
     {
-        var buffer = new DocumentOperation[8];
+        const int JOURNAL_BUFFER_SIZE = 8;
+
+        var buffer = new DocumentOperation[JOURNAL_BUFFER_SIZE];
 
         // wait for journal entries to be written to the pipeline.
-        while (await _pipe
+        while (await _fileBuffer
                    .WaitToReadAsync(_cancellationTokenSource.Token)
                    .ConfigureAwait(false))
         {
-            var count = _pipe.Read(buffer);
+            var count = _fileBuffer.Read(buffer);
             Debug.WriteLine($"writing {count} journal entries to disk.");
 
             var span = buffer.AsSpan(0, count);
@@ -58,7 +60,7 @@ public sealed class JournalPipeHandler
             _journal.WriteToDisk(span);
 
             // write the journal entries to the data file.
-            _dataPipe.Send(span);
+            _documentCollectionFileBuffer.Write(span);
         }
     }
 }

@@ -10,14 +10,14 @@ public sealed class DocumentOperation
     /// </summary>
     public ReadOnlyMemory<byte> Data { get; init; }
     public DocumentOperationType OperationType { get; init; }
-    public ulong Identity { get; private set; }
+    public ulong OperationId { get; private set; }
 
     /// <summary>
     /// Marks the journal entry as written to disk and sets the task result.
     /// </summary>
-    public void CompleteWriteToDisk() => _tcs.SetResult();
+    public void CompleteWriteToJournal() => _tcs.SetResult();
 
-    public void AssignIdentity(ulong identity) => Identity = identity;
+    public void AssignOperationId(ulong identity) => OperationId = identity;
 
     /// <summary>
     /// Waits asynchronously until the journal entry has been marked as written, or the cancellation token is triggered.
