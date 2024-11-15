@@ -100,6 +100,7 @@ public sealed class JournalFile : IDisposable
     /// <returns>A task that represents the asynchronous flush operation. The task result is true if operations were flushed, otherwise false.</returns>
     public async Task<bool> WaitToFlushAsync(CancellationToken cancellationToken)
     {
+        // we can safely cancel here because we're only waiting for the channel to be drained.
         if (!await _channel.Reader.WaitToReadAsync(cancellationToken).ConfigureAwait(false))
             return false;
 

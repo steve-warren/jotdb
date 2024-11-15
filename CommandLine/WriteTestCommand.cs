@@ -17,10 +17,10 @@ public class WriteTestCommand : ICommand
 
     public async Task ExecuteAsync(CancellationToken cancellationToken)
     {
-        // todo: ensure size
-        var buffer = new byte[DocumentStream.Length];
+        var buffer = new byte[4096];
 
-        await DocumentStream.ReadExactlyAsync(buffer, cancellationToken);
+        var count = DocumentStream.Read(buffer);
+        var memory  = buffer.AsMemory(0, count);
 
         var tasks = new List<Task>();
 
@@ -38,7 +38,7 @@ public class WriteTestCommand : ICommand
             {
                 while (!cancellationToken.IsCancellationRequested)
                 {
-                    var operationId = await _database.InsertDocumentAsync(buffer).ConfigureAwait(false);
+                    var operationId = await _database.InsertDocumentAsync(memory).ConfigureAwait(false);
                     Interlocked.Increment(ref numberOfDocuments);
                     await Task.Delay(ClientWaitTime, cancellationToken)
                         .ConfigureAwait(ConfigureAwaitOptions.SuppressThrowing);

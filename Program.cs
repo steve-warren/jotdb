@@ -1,4 +1,5 @@
 ﻿using JotDB;
+using JotDB.CommandLine;
 
 using var database = new Database();
 
@@ -38,6 +39,19 @@ AppDomain.CurrentDomain.UnhandledException += (sender, e) =>
     run.Wait();
     Console.WriteLine($"Unhandled exception occurred.");
 };
+
+if (args[0] == "write")
+{
+    var command = new WriteTestCommand(database)
+    {
+        NumberOfClients = 8,
+        ClientWaitTime = 0,
+        DocumentStream = Console.OpenStandardInput()
+    };
+
+    await command.ExecuteAsync(CancellationToken.None);
+    return;
+}
 
 while (true)
 {
