@@ -10,7 +10,7 @@ public sealed class JournalPipeHandler
     private readonly Journal _journal;
     private readonly CancellationTokenSource _cancellationTokenSource = new();
     private Task _backgroundTask;
-    
+
     public JournalPipeHandler(
         JournalPipe pipe,
         DataPipe dataPipe,
@@ -44,20 +44,19 @@ public sealed class JournalPipeHandler
     {
         var buffer = new DocumentOperation[8];
 
-        while (!_cancellationTokenSource.IsCancellationRequested)
+        // wait for journal entries to be written to the pipeline.
+        while (await _pipe
+                   .WaitToReadAsync(_cancellationTokenSource.Token)
+                   .ConfigureAwait(false))
         {
-            // wait for journal entries to be written to the pipeline.
-            var count = await _pipe
-                .WaitAndReceiveAsync(buffer.AsMemory(), _cancellationTokenSource.Token)
-                .ConfigureAwait(false);
-
+            var count = _pipe.Read(buffer);
             Debug.WriteLine($"writing {count} journal entries to disk.");
 
             var span = buffer.AsSpan(0, count);
 
             // write the journal entries to disk.
             _journal.WriteToDisk(span);
-            
+
             // write the journal entries to the data file.
             _dataPipe.Send(span);
         }

@@ -2,6 +2,9 @@ using System.Threading.Channels;
 
 namespace JotDB.Storage.Journaling;
 
+/// <summary>
+/// Handles asynchronous operations for journaling document changes using a channel for communication.
+/// </summary>
 public sealed class JournalPipe
 {
     private readonly Channel<DocumentOperation> _channel =
@@ -13,7 +16,7 @@ public sealed class JournalPipe
         FullMode = BoundedChannelFullMode.Wait
     });
 
-    public async ValueTask<DocumentOperation> SendAsync(
+    public async ValueTask<DocumentOperation> WriteAsync(
         ReadOnlyMemory<byte> data,
         DocumentOperationType operationType,
         CancellationToken cancellationToken)
@@ -31,28 +34,23 @@ public sealed class JournalPipe
         return operation;
     }
 
-    /// <summary>
-    /// Waits for and receives journal entries asynchronously into the provided buffer.
-    /// </summary>
-    /// <param name="buffer">The memory buffer where the received journal entries will be stored.</param>
-    /// <param name="cancellationToken">A cancellation token that can be used to cancel the operation.</param>
-    /// <returns>The number of journal entries received and stored into the buffer.</returns>
-    public async Task<int> WaitAndReceiveAsync(
-        Memory<DocumentOperation> buffer,
+    public ValueTask<bool> WaitToReadAsync(
         CancellationToken cancellationToken)
+    {
+        return _channel.Reader.WaitToReadAsync(cancellationToken);
+    }
+
+    public int Read(
+        Span<DocumentOperation> buffer)
     {
         var reader = _channel.Reader;
 
-        if (!await reader.WaitToReadAsync(cancellationToken).ConfigureAwait(false)) return 0;
-
-        var span = buffer.Span;
-
-        for (var i = 0; i < span.Length; i++)
+        for (var i = 0; i < buffer.Length; i++)
         {
             if (!reader.TryRead(out var entry)) return i;
-            span[i] = entry;
+            buffer[i] = entry;
         }
 
-        return span.Length;
+        return buffer.Length;
     }
 }

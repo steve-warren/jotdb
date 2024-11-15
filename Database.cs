@@ -25,7 +25,7 @@ public class Database
     {
         // sends the document to the journal pipeline to be written to disk.
         // this call only blocks when the pipeline is full.
-        var entry = await _journalPipe.SendAsync(
+        var entry = await _journalPipe.WriteAsync(
             document,
             DocumentOperationType.Insert,
             CancellationToken.None).ConfigureAwait(false);
