@@ -1,6 +1,8 @@
+using System.Diagnostics;
+
 namespace JotDB.Storage;
 
-public sealed class BackgroundWorker<TArg> where TArg : class
+public sealed class BackgroundWorker<TArg> : IBackgroundWorker where TArg : class
 {
     private readonly CancellationTokenSource _cts = new();
     private readonly TArg _arg;
@@ -20,6 +22,8 @@ public sealed class BackgroundWorker<TArg> where TArg : class
 
     public void Start()
     {
+        Debug.WriteLine($"Starting background worker '{Name}'");
+
         _backgroundTask = _backgroundTaskDelegate(
             _arg,
             _cts.Token);
@@ -27,6 +31,7 @@ public sealed class BackgroundWorker<TArg> where TArg : class
 
     public Task StopAsync()
     {
+        Debug.WriteLine($"Stopping background worker '{Name}'");
         _cts.Cancel();
         return _backgroundTask;
     }

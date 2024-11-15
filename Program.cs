@@ -12,6 +12,17 @@ Console.CancelKeyPress += (sender, e) =>
     database.ShutdownAsync().Wait();
 };
 
+database.RegisterBackgroundWorker(
+    "journal file background worker",
+    async (db, cancellationToken) =>
+    {
+        var journal = db.Journal;
+        while (!cancellationToken.IsCancellationRequested)
+        {
+            await journal.WaitToFlushAsync(CancellationToken.None);
+        }
+    });
+
 database.Start();
 
 var data = """
@@ -32,7 +43,7 @@ var tasks = new List<Task>();
 var numberOfDocuments = 0;
 var watch = Stopwatch.StartNew();
 
-for (var i = 0; i < 8; i++)
+for (var i = 0; i < 1; i++)
 {
     var id = i;
 
@@ -43,9 +54,9 @@ for (var i = 0; i < 8; i++)
     {
         while (!cancellationTokenSource.IsCancellationRequested)
         {
-            var transactionId = await database.InsertDocumentAsync(data).ConfigureAwait(false);
+            var operationId = await database.InsertDocumentAsync(data).ConfigureAwait(false);
             Interlocked.Increment(ref numberOfDocuments);
-            //await Task.Delay(1000, cancellationTokenSource.Token).ConfigureAwait(false);
+            await Task.Delay(1000, cancellationTokenSource.Token).ConfigureAwait(ConfigureAwaitOptions.SuppressThrowing);
         }
     }
 }

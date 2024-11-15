@@ -4,31 +4,30 @@ namespace JotDB;
 
 public class Database
 {
-    private readonly JournalFile _journalFile;
-    private readonly BackgroundWorker<JournalFile> _journalBackgroundWorker;
+    private readonly JournalFile _journal;
+    private readonly List<IBackgroundWorker> _backgroundWorkers = [];
 
     private readonly CancellationTokenSource _cancellationTokenSource;
 
     public Database()
     {
-        _journalFile = JournalFile.Open("journal.txt");
-
-        _journalBackgroundWorker = new BackgroundWorker<JournalFile>(
-            "journal file background worker",
-            async (journalFile, cancellationToken) =>
-            {
-                while (!cancellationToken.IsCancellationRequested)
-                {
-                    await journalFile.WaitToFlushAsync(cancellationToken);
-                }
-            }, _journalFile);
-
+        _journal = JournalFile.Open("journal.txt");
         _cancellationTokenSource = new CancellationTokenSource();
+    }
+
+    public JournalFile Journal => _journal;
+
+    public void RegisterBackgroundWorker(
+        string name,
+        Func<Database, CancellationToken, Task> work)
+    {
+        var worker = new BackgroundWorker<Database>(name, work, this);
+        _backgroundWorkers.Add(worker);
     }
 
     public async Task<ulong> InsertDocumentAsync(ReadOnlyMemory<byte> document)
     {
-        var operationId = await _journalFile
+        var operationId = await _journal
             .WriteAsync(
                 document,
                 DocumentOperationType.Insert)
@@ -45,14 +44,19 @@ public class Database
     public void Start()
     {
         Console.WriteLine("starting jotdb database.");
-        _journalBackgroundWorker.Start();
+
+        foreach (var worker in _backgroundWorkers)
+            worker.Start();
     }
 
     public async Task ShutdownAsync()
     {
         Console.WriteLine("shutting down database.");
         await _cancellationTokenSource.CancelAsync().ConfigureAwait(false);
-        await _journalBackgroundWorker.StopAsync().ConfigureAwait(false);
-        _journalFile.Dispose();
+
+        foreach(var worker in _backgroundWorkers)
+            await worker.StopAsync().ConfigureAwait(false);
+
+        _journal.Dispose();
     }
 }
