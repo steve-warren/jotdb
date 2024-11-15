@@ -36,8 +36,7 @@ public sealed class Journal : IDisposable
             path: path,
             mode: FileMode.Append,
             access: FileAccess.Write,
-            share: FileShare.Read,
-            FileOptions.WriteThrough);
+            share: FileShare.Read);
     }
 
     public string Path { get; }

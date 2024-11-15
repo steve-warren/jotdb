@@ -51,7 +51,7 @@ public sealed class JournalPipeHandler
                 .WaitAndReceiveAsync(buffer.AsMemory(), _cancellationTokenSource.Token)
                 .ConfigureAwait(false);
 
-            Console.WriteLine($"writing {count} journal entries to disk.");
+            Debug.WriteLine($"writing {count} journal entries to disk.");
 
             var span = buffer.AsSpan(0, count);
 
