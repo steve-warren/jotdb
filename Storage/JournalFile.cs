@@ -58,12 +58,20 @@ public sealed class JournalFile : IDisposable
 
     public string Path { get; }
 
+    public void Close() => _channel.Writer.Complete();
+
     public void Dispose()
     {
         _channel.Writer.Complete();
         _file.Dispose();
     }
 
+    /// <summary>
+    /// Asynchronously writes a document operation to the journal file.
+    /// </summary>
+    /// <param name="data">The data to be written to the journal file.</param>
+    /// <param name="operationType">The type of document operation (Insert, Update, Delete).</param>
+    /// <returns>A task that represents the asynchronous write operation. The task result contains the unique operation ID of the written operation.</returns>
     public async Task<ulong> WriteAsync(
         ReadOnlyMemory<byte> data,
         DocumentOperationType operationType)
@@ -85,6 +93,11 @@ public sealed class JournalFile : IDisposable
         return operation.OperationId;
     }
 
+    /// <summary>
+    /// Asynchronously waits for operations to be available and flushes them to the journal file.
+    /// </summary>
+    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
+    /// <returns>A task that represents the asynchronous flush operation. The task result is true if operations were flushed, otherwise false.</returns>
     public async Task<bool> WaitToFlushAsync(CancellationToken cancellationToken)
     {
         if (!await _channel.Reader.WaitToReadAsync(cancellationToken).ConfigureAwait(false))
