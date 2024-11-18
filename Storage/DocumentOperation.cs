@@ -2,13 +2,16 @@ namespace JotDB.Storage;
 
 public sealed class DocumentOperation
 {
-    private readonly TaskCompletionSource _tcs = new();
+    // continuations must run asynchronously
+    // otherwise deadlocks will occur when calling SetResult
+    private readonly TaskCompletionSource _tcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
     /// <summary>
     /// Gets a task that represents the asynchronous write operation's completion status for the journal entry.
     /// The task completes when the entry has been successfully written and flushed to the durable storage.
     /// </summary>
     public ReadOnlyMemory<byte> Data { get; init; }
+
     public DocumentOperationType OperationType { get; init; }
     public ulong OperationId { get; private set; }
 

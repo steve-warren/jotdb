@@ -5,7 +5,7 @@ using JotDB.CommandLine;
 
 using var database = new Database();
 
-database.RegisterBackgroundWorker(
+database.AddBackgroundWorker(
     "journal writer background worker",
     async (db, cancellationToken) =>
     {
@@ -14,6 +14,16 @@ database.RegisterBackgroundWorker(
         while (!cancellationToken.IsCancellationRequested)
         {
             await journal.WaitToFlushAsync(cancellationToken);
+        }
+    });
+
+database.AddBackgroundWorker(
+    "page writer",
+    async (db, cancellationToken) =>
+    {
+        await foreach (var documentOperation in db.Journal.WaitToReadAsync(cancellationToken))
+        {
+            Debug.WriteLine(documentOperation.OperationId + " write to in-memory page");
         }
     });
 

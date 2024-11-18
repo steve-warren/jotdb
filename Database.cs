@@ -2,14 +2,6 @@ using JotDB.Storage;
 
 namespace JotDB;
 
-public enum DatabaseState : byte
-{
-    Stopped,
-    Starting,
-    Running,
-    Stopping
-}
-
 public sealed class Database : IDisposable
 {
     private readonly List<BackgroundWorker> _backgroundWorkers = [];
@@ -23,7 +15,7 @@ public sealed class Database : IDisposable
 
     public JournalFile Journal { get; }
 
-    public void RegisterBackgroundWorker(
+    public void AddBackgroundWorker(
         string name,
         Func<Database, CancellationToken, Task> work)
     {
