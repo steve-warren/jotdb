@@ -15,7 +15,7 @@ public sealed class DocumentOperation
     /// <summary>
     /// Marks the journal entry as written to disk and sets the task result.
     /// </summary>
-    public void CompleteWriteToJournal() => _tcs.SetResult();
+    public void FlushJournal() => _tcs.SetResult();
 
     public void AssignOperationId(ulong identity) => OperationId = identity;
 
@@ -24,7 +24,7 @@ public sealed class DocumentOperation
     /// </summary>
     /// <param name="cancellationToken">Token to observe while waiting for the task to complete.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
-    public Task WaitUntilWriteToDiskCompletesAsync(CancellationToken cancellationToken)
+    public Task WaitForJournalFlushAsync(CancellationToken cancellationToken)
     {
         cancellationToken.Register(() => _tcs.TrySetCanceled());
 

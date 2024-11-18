@@ -11,7 +11,7 @@ public sealed class JournalFile : IDisposable
     private const int JOURNAL_FLUSH_BUFFER_SIZE = 8;
     private const int JOURNAL_MEMORY_BUFFER_SIZE = 128;
 
-    private readonly Channel<DocumentOperation> _channel;
+    private readonly Channel<DocumentOperation> _pendingWriteBuffer;
     private readonly DocumentOperation[] _flushBuffer;
 
     private readonly SafeFileHandle _file;
@@ -46,7 +46,7 @@ public sealed class JournalFile : IDisposable
             access: FileAccess.Write,
             share: FileShare.Read);
 
-        _channel = Channel.CreateBounded<DocumentOperation>(new BoundedChannelOptions(JOURNAL_MEMORY_BUFFER_SIZE)
+        _pendingWriteBuffer = Channel.CreateBounded<DocumentOperation>(new BoundedChannelOptions(JOURNAL_MEMORY_BUFFER_SIZE)
         {
             SingleReader = true,
             SingleWriter = false,
@@ -58,11 +58,11 @@ public sealed class JournalFile : IDisposable
 
     public string Path { get; }
 
-    public void Close() => _channel.Writer.Complete();
+    public void Close() => _pendingWriteBuffer.Writer.Complete();
 
     public void Dispose()
     {
-        _channel.Writer.Complete();
+        _pendingWriteBuffer.Writer.Complete();
         _file.Dispose();
     }
 
@@ -82,12 +82,12 @@ public sealed class JournalFile : IDisposable
             OperationType = operationType
         };
 
-        await _channel.Writer
+        await _pendingWriteBuffer.Writer
             .WriteAsync(operation)
             .ConfigureAwait(false);
 
         await operation
-            .WaitUntilWriteToDiskCompletesAsync(CancellationToken.None)
+            .WaitForJournalFlushAsync(CancellationToken.None)
             .ConfigureAwait(false);
 
         return operation.OperationId;
@@ -101,10 +101,10 @@ public sealed class JournalFile : IDisposable
     public async Task<bool> WaitToFlushAsync(CancellationToken cancellationToken)
     {
         // we can safely cancel here because we're only waiting for the channel to be drained.
-        if (!await _channel.Reader.WaitToReadAsync(cancellationToken).ConfigureAwait(false))
+        if (!await _pendingWriteBuffer.Reader.WaitToReadAsync(cancellationToken).ConfigureAwait(false))
             return false;
 
-        var reader = _channel.Reader;
+        var reader = _pendingWriteBuffer.Reader;
         var i = 0;
 
         for (; i < _flushBuffer.Length; i++)
@@ -149,7 +149,7 @@ public sealed class JournalFile : IDisposable
 
         foreach (var entry in documentOperations)
         {
-            entry.CompleteWriteToJournal();
+            entry.FlushJournal();
             _offset += 13 + entry.Data.Length;
         }
 

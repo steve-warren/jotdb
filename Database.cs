@@ -2,10 +2,19 @@ using JotDB.Storage;
 
 namespace JotDB;
 
+public enum DatabaseState : byte
+{
+    Stopped,
+    Starting,
+    Running,
+    Stopping
+}
+
 public sealed class Database : IDisposable
 {
     private readonly List<BackgroundWorker> _backgroundWorkers = [];
     private readonly TaskCompletionSource _runningStateTask = new();
+    private volatile DatabaseState _state = DatabaseState.Stopped;
 
     public Database()
     {
@@ -44,28 +53,10 @@ public sealed class Database : IDisposable
     /// <returns>A task that represents the asynchronous operation of running the database.</returns>
     public async Task RunAsync()
     {
-        Console.WriteLine("starting jotdb database.");
-
-        foreach (var worker in _backgroundWorkers)
-            worker.Start();
-
-        await _runningStateTask.Task;
-
-        Console.WriteLine("shutting down database.");
-
-        foreach (var worker in _backgroundWorkers)
-        {
-            try
-            {
-
-                await worker.StopAsync();
-            }
-
-            catch (OperationCanceledException)
-            {
-                // ignore cancellation exceptions
-            }
-        }
+        await OnStartingAsync();
+        await OnRunningAsync();
+        await OnStoppingAsync();
+        await OnStoppedAsync();
     }
 
     /// <summary>
@@ -80,5 +71,65 @@ public sealed class Database : IDisposable
     public void Dispose()
     {
         Journal.Dispose();
+    }
+
+    private Task OnStartingAsync()
+    {
+        _state = DatabaseState.Starting;
+
+        Console.WriteLine("starting database");
+
+        foreach (var worker in _backgroundWorkers)
+        {
+            try
+            {
+                worker.Start();
+            }
+
+            catch (Exception ex)
+            {
+                Console.WriteLine(
+                    $"Failed to start background worker '{worker.Name}'. Exception: {ex}");
+            }
+        }
+
+        return Task.CompletedTask;
+    }
+
+    private Task OnRunningAsync()
+    {
+        _state = DatabaseState.Running;
+
+        Console.WriteLine("running database");
+
+        return _runningStateTask.Task;
+    }
+
+    private async Task OnStoppingAsync()
+    {
+        _state = DatabaseState.Stopping;
+
+        Console.WriteLine("shutting down database.");
+
+        foreach (var worker in _backgroundWorkers)
+        {
+            try
+            {
+                await worker.StopAsync();
+            }
+
+            catch (OperationCanceledException)
+            {
+                // ignore cancellation exceptions
+            }
+        }
+
+        Journal.Dispose();
+    }
+
+    private Task OnStoppedAsync()
+    {
+        _state = DatabaseState.Stopped;
+        return Task.CompletedTask;
     }
 }

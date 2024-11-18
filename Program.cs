@@ -1,10 +1,12 @@
-﻿using JotDB;
+﻿using System.Diagnostics;
+using System.Text;
+using JotDB;
 using JotDB.CommandLine;
 
 using var database = new Database();
 
 database.RegisterBackgroundWorker(
-    "journal file background worker",
+    "journal writer background worker",
     async (db, cancellationToken) =>
     {
         var journal = db.Journal;
@@ -40,12 +42,13 @@ AppDomain.CurrentDomain.UnhandledException += (sender, e) =>
     Console.WriteLine($"Unhandled exception occurred.");
 };
 
-if (args[0] == "write")
+if (args.Length > 0 &&
+    args[0] == "write")
 {
     var command = new WriteTestCommand(database)
     {
-        NumberOfClients = 8,
-        ClientWaitTime = 0,
+        NumberOfClients = 1,
+        ClientWaitTime = 1_000,
         DocumentStream = Console.OpenStandardInput()
     };
 
@@ -58,10 +61,17 @@ while (true)
     Console.Write("jot> ");
     var commandText = Console.ReadLine();
 
-    if (commandText == "exit")
+    if (commandText.StartsWith("insert into c "))
     {
-        database.TryShutdown();
-        await run;
-        break;
+        var data = Encoding.UTF8.GetBytes(commandText, 14, commandText.Length - 14);
+
+        var watch = Stopwatch.StartNew();
+        var id = await database.InsertDocumentAsync(data);
+        Console.WriteLine($"command completed in {watch.ElapsedMilliseconds}ms");
+    }
+
+    else
+    {
+        Console.WriteLine("unknown command");
     }
 }
