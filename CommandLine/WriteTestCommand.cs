@@ -20,7 +20,7 @@ public class WriteTestCommand : ICommand
         var buffer = new byte[4096];
 
         var count = DocumentStream.Read(buffer);
-        var memory  = buffer.AsMemory(0, count);
+        var memory = buffer.AsMemory(0, count);
 
         var tasks = new List<Task>();
 
@@ -46,9 +46,15 @@ public class WriteTestCommand : ICommand
             }
         }
 
-        await Task.WhenAll(tasks);
+        try
+        {
+            await Task.WhenAll(tasks).ConfigureAwait(false);
+        }
 
-        Console.WriteLine($"{numberOfDocuments} in {watch.ElapsedMilliseconds}ms");
-        Console.WriteLine(numberOfDocuments / watch.Elapsed.TotalSeconds);
+        finally
+        {
+            Console.WriteLine($"{numberOfDocuments} in {watch.ElapsedMilliseconds}ms");
+            Console.WriteLine(numberOfDocuments / watch.Elapsed.TotalSeconds);
+        }
     }
 }

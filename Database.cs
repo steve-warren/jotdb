@@ -11,9 +11,12 @@ public sealed class Database : IDisposable
     public Database()
     {
         Journal = JournalFile.Open("journal.txt");
+        PageController = new PageController();
     }
 
     public JournalFile Journal { get; }
+    public PageController PageController { get; }
+    public DatabaseState State => _state;
 
     public void AddBackgroundWorker(
         string name,
@@ -45,10 +48,10 @@ public sealed class Database : IDisposable
     /// <returns>A task that represents the asynchronous operation of running the database.</returns>
     public async Task RunAsync()
     {
-        await OnStartingAsync();
-        await OnRunningAsync();
-        await OnStoppingAsync();
-        await OnStoppedAsync();
+        await OnStartingAsync().ConfigureAwait(false);
+        await OnRunningAsync().ConfigureAwait(false);
+        await OnStoppingAsync().ConfigureAwait(false);
+        await OnStoppedAsync().ConfigureAwait(false);
     }
 
     /// <summary>
@@ -107,7 +110,7 @@ public sealed class Database : IDisposable
         {
             try
             {
-                await worker.StopAsync();
+                await worker.StopAsync().ConfigureAwait(false);
             }
 
             catch (OperationCanceledException)

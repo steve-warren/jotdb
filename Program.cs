@@ -2,6 +2,7 @@
 using System.Text;
 using JotDB;
 using JotDB.CommandLine;
+using JotDB.Storage;
 
 using var database = new Database();
 
@@ -13,7 +14,7 @@ database.AddBackgroundWorker(
 
         while (!cancellationToken.IsCancellationRequested)
         {
-            await journal.WaitToFlushAsync(cancellationToken);
+            await journal.WaitToFlushAsync(cancellationToken).ConfigureAwait(false);
         }
     });
 
@@ -21,9 +22,13 @@ database.AddBackgroundWorker(
     "page writer",
     async (db, cancellationToken) =>
     {
-        await foreach (var documentOperation in db.Journal.WaitToReadAsync(cancellationToken))
+        await foreach (var documentOperation in
+                       db.Journal.WaitToReadAsync(cancellationToken).ConfigureAwait(false))
         {
-            Debug.WriteLine(documentOperation.OperationId + " write to in-memory page");
+            if (documentOperation.OperationType == DocumentOperationType.Insert)
+            {
+                db.PageController.Write(documentOperation.Data);
+            }
         }
     });
 
@@ -34,7 +39,7 @@ Console.CancelKeyPress += (sender, e) =>
     database.TryShutdown();
     run.Wait();
 
-    Console.WriteLine("exiting process");
+    Console.WriteLine("process exited");
 };
 
 // macOS: quit and force quit
@@ -62,7 +67,7 @@ if (args.Length > 0 &&
         DocumentStream = Console.OpenStandardInput()
     };
 
-    await command.ExecuteAsync(CancellationToken.None);
+    await command.ExecuteAsync(CancellationToken.None).ConfigureAwait(false);
     return;
 }
 
@@ -76,7 +81,7 @@ while (true)
         var data = Encoding.UTF8.GetBytes(commandText, 14, commandText.Length - 14);
 
         var watch = Stopwatch.StartNew();
-        var id = await database.InsertDocumentAsync(data);
+        var id = await database.InsertDocumentAsync(data).ConfigureAwait(false);
         Console.WriteLine($"command completed in {watch.ElapsedMilliseconds}ms");
     }
 
