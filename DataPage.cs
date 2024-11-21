@@ -6,16 +6,21 @@ public class DataPage(uint id)
 {
     public const uint MAX_PAGE_SIZE = 4096; // 4 KiB
 
-    private ReadOnlyMemory<byte> _data;
+    private List<ReadOnlyMemory<byte>> _data = [];
 
     public uint Id { get; } = id;
+    public int Size { get; private set; }
 
-    public void Write(ReadOnlyMemory<byte> data)
+    public bool TryWrite(ReadOnlyMemory<byte> data)
     {
         Debug.Assert(data.Length <= MAX_PAGE_SIZE, "data length exceeds page size.");
 
-        _data = data;
-    }
+        if (Size + data.Length > MAX_PAGE_SIZE)
+            return false;
+        
+        _data.Add(data);
 
-    public ReadOnlyMemory<byte> Read() => _data;
+        Size += data.Length;
+        return true;
+    }
 }
