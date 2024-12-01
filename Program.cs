@@ -7,7 +7,7 @@ using JotDB.Storage;
 using var database = new Database();
 
 database.AddBackgroundWorker(
-    "journal writer background worker",
+    "journal writer",
     async (db, cancellationToken) =>
     {
         var journal = db.Journal;
@@ -19,16 +19,24 @@ database.AddBackgroundWorker(
     });
 
 database.AddBackgroundWorker(
-    "page writer",
+    "segment writer",
     async (db, cancellationToken) =>
     {
         await foreach (var documentOperation in
                        db.Journal.WaitToReadAsync(cancellationToken).ConfigureAwait(false))
         {
-            if (documentOperation.OperationType == DocumentOperationType.Insert)
+            switch (documentOperation.OperationType)
             {
-                db.PageController.Write(documentOperation.Data);
+                case DocumentOperationType.Insert:
+                    db.AddToCache(documentOperation.OperationId, documentOperation.Data);
+                    break;
+                case DocumentOperationType.Update:
+                case DocumentOperationType.Delete:
+                default:
+                    throw new NotImplementedException();
             }
+
+            db.Checkpoint(documentOperation.OperationId);
         }
     });
 
@@ -74,7 +82,18 @@ if (args.Length > 0 &&
 while (true)
 {
     Console.Write("jot> ");
-    var commandText = Console.ReadLine();
+    var commandText = "";
+
+    var key = Console.ReadKey(false);
+
+    if (key.Key == ConsoleKey.UpArrow)
+    {
+        Console.Write("insert into c ");
+        commandText = "insert into c " + Console.ReadLine();
+    }
+
+    else
+        commandText = key.KeyChar + Console.ReadLine();
 
     if (commandText.StartsWith("insert into c "))
     {
@@ -85,8 +104,25 @@ while (true)
         Console.WriteLine($"command completed in {watch.ElapsedMilliseconds}ms");
     }
 
+    else if (commandText.StartsWith("select * from c"))
+    {
+        foreach (var id in database.GetCachedDocuments())
+        {
+            Console.WriteLine(id);
+        }
+    }
+
+    else if (commandText == "exit")
+    {
+        break;
+    }
+
     else
     {
         Console.WriteLine("unknown command");
     }
 }
+
+database.TryShutdown();
+
+await run.ConfigureAwait(false);

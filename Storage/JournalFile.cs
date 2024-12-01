@@ -26,7 +26,7 @@ public sealed class JournalFile : IDisposable
         {
             Access = FileAccess.Read,
             Mode = FileMode.OpenOrCreate,
-            Share = FileShare.ReadWrite
+            Share = FileShare.Write
         });
 
         return new JournalFile(
@@ -45,7 +45,8 @@ public sealed class JournalFile : IDisposable
             path: path,
             mode: FileMode.Append,
             access: FileAccess.Write,
-            share: FileShare.Read);
+            share: FileShare.Read,
+            options: FileOptions.WriteThrough);
 
         _inboundBuffer = Channel.CreateBounded<DocumentOperation>(
             new BoundedChannelOptions(JOURNAL_MEMORY_BUFFER_SIZE)
@@ -69,11 +70,11 @@ public sealed class JournalFile : IDisposable
 
     public string Path { get; }
 
-    public void Close() => _inboundBuffer.Writer.Complete();
+    public void Close() => _inboundBuffer.Writer.TryComplete();
 
     public void Dispose()
     {
-        _inboundBuffer.Writer.Complete();
+        _inboundBuffer.Writer.TryComplete();
         _file.Dispose();
     }
 

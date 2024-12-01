@@ -7,15 +7,14 @@ public sealed class Database : IDisposable
     private readonly List<BackgroundWorker> _backgroundWorkers = [];
     private readonly TaskCompletionSource _runningStateTask = new();
     private volatile DatabaseState _state = DatabaseState.Stopped;
+    private Dictionary<ulong, ReadOnlyMemory<byte>> _cache = new();
 
     public Database()
     {
         Journal = JournalFile.Open("journal.txt");
-        PageController = new PageController();
     }
 
     public JournalFile Journal { get; }
-    public PageController PageController { get; }
     public DatabaseState State => _state;
 
     public void AddBackgroundWorker(
@@ -42,6 +41,16 @@ public sealed class Database : IDisposable
         throw new NotImplementedException();
     }
 
+    public void AddToCache(ulong documentId, ReadOnlyMemory<byte> document)
+    {
+        _cache.Add(documentId, document);
+    }
+
+    public IEnumerable<ulong> GetCachedDocuments()
+    {
+        return _cache.Keys;
+    }
+
     /// <summary>
     /// Runs the database, starting all registered background workers and waiting for a shutdown signal.
     /// </summary>
@@ -66,6 +75,11 @@ public sealed class Database : IDisposable
     public void Dispose()
     {
         Journal.Dispose();
+    }
+
+    public void Checkpoint(ulong operationId)
+    {
+        
     }
 
     private Task OnStartingAsync()
