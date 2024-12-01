@@ -178,6 +178,7 @@ public sealed class JournalFile : IDisposable
             }
             
             RandomAccess.Write(_file, new ReadOnlySpan<byte>(alignedBuffer, (int)bufferSize), _offset);
+            _offset += 4096;
         }
 
         catch (IOException ex)
@@ -193,7 +194,6 @@ public sealed class JournalFile : IDisposable
             {
                 var entry = documentOperations.Span[i];
                 entry.FlushJournal(ioException);
-                _offset += 13 + entry.Data.Length;
             }
         }
     }
