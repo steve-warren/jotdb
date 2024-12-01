@@ -106,17 +106,5 @@
     "transaction_description": "feugiat non pretium quis lectus suspendisse potenti in eleifend quam a odio in hac habitasse platea dictumst maecenas",
     "card_type": "visa",
     "location": "Apt 480"
-  },
-  {
-    "transaction_id": 10,
-    "transaction_date": "2/2/2022",
-    "transaction_amount": 4181.09,
-    "transaction_type": "withdrawal",
-    "account_number": 7593061952,
-    "merchant_name": "Dabfeed",
-    "transaction_category": "food",
-    "transaction_description": "eget orci vehicula condimentum curabitur in libero ut massa volutpat convallis morbi odio odio elementum eu interdum eu",
-    "card_type": "mastercard",
-    "location": "Suite 38"
   }
 ]

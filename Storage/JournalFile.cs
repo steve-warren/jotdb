@@ -1,4 +1,5 @@
 using System.Buffers;
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Threading.Channels;
@@ -22,16 +23,9 @@ public sealed class JournalFile : IDisposable
     public static JournalFile Open(
         string path)
     {
-        using var file = File.Open(path, new FileStreamOptions
-        {
-            Access = FileAccess.Read,
-            Mode = FileMode.OpenOrCreate,
-            Share = FileShare.Write
-        });
-
         return new JournalFile(
             path: path,
-            offset: file.Length);
+            offset: 0);
     }
 
     private JournalFile(
@@ -43,10 +37,10 @@ public sealed class JournalFile : IDisposable
 
         _file = File.OpenHandle(
             path: path,
-            mode: FileMode.Append,
-            access: FileAccess.Write,
-            share: FileShare.Read,
-            options: FileOptions.WriteThrough | (FileOptions) 0x20000000);
+            mode: FileMode.OpenOrCreate,
+            access: FileAccess.ReadWrite,
+            share: FileShare.None,
+            options: FileOptions.WriteThrough | (FileOptions)0x20000000);
 
         _inboundBuffer = Channel.CreateBounded<DocumentOperation>(
             new BoundedChannelOptions(JOURNAL_MEMORY_BUFFER_SIZE)
@@ -82,8 +76,8 @@ public sealed class JournalFile : IDisposable
         [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
         while (await _outboundBuffer.Reader.WaitToReadAsync(cancellationToken).ConfigureAwait(false))
-            while (_outboundBuffer.Reader.TryRead(out var document))
-                yield return document;
+        while (_outboundBuffer.Reader.TryRead(out var document))
+            yield return document;
     }
 
     /// <summary>
@@ -127,57 +121,81 @@ public sealed class JournalFile : IDisposable
         var reader = _inboundBuffer.Reader;
         var i = 0;
 
+        var bufferLimit = 4096;
+
         for (; i < _flushBuffer.Length; i++)
         {
             if (!reader.TryRead(out var operation)) break;
+
+            bufferLimit -= operation.Data.Length;
+
+            if (bufferLimit < 0)
+                break;
+
             _flushBuffer[i] = operation;
         }
 
-        var span = _flushBuffer.AsSpan(start: 0, length: i);
+        var memory = _flushBuffer.AsMemory(start: 0, length: i);
 
-        WriteToFile(span);
+        WriteToFile(memory);
 
-        for (i = 0; i < span.Length; i++)
+        for (i = 0; i < memory.Length; i++)
             _outboundBuffer.Writer.TryWrite(_flushBuffer[i]);
 
         return true;
     }
 
-    private void WriteToFile(
-        ReadOnlySpan<DocumentOperation> documentOperations)
+    private unsafe void WriteToFile(
+        ReadOnlyMemory<DocumentOperation> documentOperations)
     {
-        var buffers = new ReadOnlyMemory<byte>[documentOperations.Length * 2];
-        var rented = new List<byte[]>();
-        var j = 0;
+        const nuint alignment = 4096;
+        const nuint bufferSize = 4096;
 
-        for (var i = 0; i < documentOperations.Length; i++, j++)
+        var alignedBuffer = NativeMemory.AlignedAlloc(bufferSize, alignment);
+        Exception? ioException = null;
+
+        if (alignedBuffer == null)
         {
-            var documentOperation = documentOperations[i];
-
-            documentOperation.AssignOperationId(++_identity);
-
-            var buffer = ArrayPool<byte>.Shared.Rent(13);
-            rented.Add(buffer);
-
-            var span = buffer.AsSpan(0, 13);
-
-            SerializeJournalEntry(documentOperation, span);
-
-            buffers[j] = buffer.AsMemory(0, 13);
-            j++;
-            buffers[j] = documentOperation.Data;
+            Debugger.Break();
+            throw new OutOfMemoryException("failed to allocate aligned memory.");
         }
 
-        RandomAccess.Write(_file, buffers, _offset);
-
-        foreach (var entry in documentOperations)
+        try
         {
-            entry.FlushJournal();
-            _offset += 13 + entry.Data.Length;
+            var span = new Span<byte>(alignedBuffer, (int)bufferSize);
+            span.Clear();
+
+            var offset = 0;
+            
+            for (var i = 0; i < documentOperations.Length; i++)
+            {
+                var documentOperation = documentOperations.Span[i];
+
+                documentOperation.AssignOperationId(++_identity);
+
+                documentOperation.Data.Span.CopyTo(span.Slice(offset, documentOperation.Data.Length));
+                offset += documentOperation.Data.Length;
+            }
+            
+            RandomAccess.Write(_file, new ReadOnlySpan<byte>(alignedBuffer, (int)bufferSize), _offset);
         }
 
-        foreach (var buffer in rented)
-            ArrayPool<byte>.Shared.Return(buffer);
+        catch (IOException ex)
+        {
+            ioException = ex;
+        }
+
+        finally
+        {
+            NativeMemory.AlignedFree(alignedBuffer);
+
+            for (var i = 0; i < documentOperations.Length; i++)
+            {
+                var entry = documentOperations.Span[i];
+                entry.FlushJournal(ioException);
+                _offset += 13 + entry.Data.Length;
+            }
+        }
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

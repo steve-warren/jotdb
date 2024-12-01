@@ -68,10 +68,11 @@ AppDomain.CurrentDomain.UnhandledException += (sender, e) =>
 if (args.Length > 0 &&
     args[0] == "write")
 {
+    Console.WriteLine("starting write test...");
     var command = new WriteTestCommand(database)
     {
         NumberOfClients = 1,
-        ClientWaitTime = 1_000,
+        ClientWaitTime = 2_000,
         DocumentStream = Console.OpenStandardInput()
     };
 

@@ -18,7 +18,13 @@ public sealed class DocumentOperation
     /// <summary>
     /// Marks the journal entry as written to disk and sets the task result.
     /// </summary>
-    public void FlushJournal() => _tcs.SetResult();
+    public void FlushJournal(Exception? exception = null)
+    {
+        if (exception is not null)
+            _tcs.TrySetException(exception);
+        else
+            _tcs.TrySetResult();
+    }
 
     public void AssignOperationId(ulong identity) => OperationId = identity;
 
