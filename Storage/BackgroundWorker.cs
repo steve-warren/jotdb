@@ -24,7 +24,7 @@ public sealed class BackgroundWorker
 
     public void Start()
     {
-        Debug.WriteLine($"Starting background worker '{Name}'");
+        Console.WriteLine($"Starting background worker '{Name}'");
 
         _backgroundTask = _backgroundTaskDelegate(
             _database,
@@ -33,7 +33,7 @@ public sealed class BackgroundWorker
 
     public Task StopAsync()
     {
-        Debug.WriteLine($"Stopping background worker '{Name}'");
+        Console.WriteLine($"Stopping background worker '{Name}'");
         _cts.Cancel();
         return _backgroundTask;
     }

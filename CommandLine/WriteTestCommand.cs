@@ -31,7 +31,7 @@ public class WriteTestCommand : ICommand
         {
             var id = i;
 
-            tasks.Add(Task.Run(WriteDocument, cancellationToken));
+            tasks.Add(Task.Run(WriteDocument, CancellationToken.None));
             continue;
 
             async Task? WriteDocument()
@@ -54,7 +54,7 @@ public class WriteTestCommand : ICommand
         finally
         {
             Console.WriteLine($"{numberOfDocuments} in {watch.ElapsedMilliseconds}ms");
-            Console.WriteLine(numberOfDocuments / watch.Elapsed.TotalSeconds);
+            Console.Out.Flush();
         }
     }
 }

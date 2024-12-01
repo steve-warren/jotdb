@@ -46,7 +46,6 @@ Console.CancelKeyPress += (sender, e) =>
 {
     database.TryShutdown();
     run.Wait();
-
     Console.WriteLine("process exited");
 };
 
@@ -71,8 +70,8 @@ if (args.Length > 0 &&
     Console.WriteLine("starting write test...");
     var command = new WriteTestCommand(database)
     {
-        NumberOfClients = 1,
-        ClientWaitTime = 2_000,
+        NumberOfClients = 8,
+        ClientWaitTime = 100,
         DocumentStream = Console.OpenStandardInput()
     };
 
