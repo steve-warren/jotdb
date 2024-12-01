@@ -46,7 +46,7 @@ public sealed class JournalFile : IDisposable
             mode: FileMode.Append,
             access: FileAccess.Write,
             share: FileShare.Read,
-            options: FileOptions.WriteThrough);
+            options: FileOptions.WriteThrough | (FileOptions) 0x20000000);
 
         _inboundBuffer = Channel.CreateBounded<DocumentOperation>(
             new BoundedChannelOptions(JOURNAL_MEMORY_BUFFER_SIZE)
