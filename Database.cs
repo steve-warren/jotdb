@@ -25,20 +25,12 @@ public sealed class Database : IDisposable
         _backgroundWorkers.Add(worker);
     }
 
-    public async Task<ulong> InsertDocumentAsync(ReadOnlyMemory<byte> document)
+    public Task InsertDocumentAsync(ReadOnlyMemory<byte> document)
     {
-        var operationId = await Journal
+        return Journal
             .WriteAsync(
                 document,
-                DocumentOperationType.Insert)
-            .ConfigureAwait(false);
-
-        return operationId;
-    }
-
-    public Task DeleteDocumentAsync(ulong documentId)
-    {
-        throw new NotImplementedException();
+                JournalEntryType.Insert);
     }
 
     public void AddToCache(ulong documentId, ReadOnlyMemory<byte> document)

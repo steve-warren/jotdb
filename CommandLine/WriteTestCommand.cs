@@ -38,7 +38,7 @@ public class WriteTestCommand : ICommand
             {
                 while (!cancellationToken.IsCancellationRequested)
                 {
-                    var operationId = await _database.InsertDocumentAsync(memory).ConfigureAwait(false);
+                    await _database.InsertDocumentAsync(memory).ConfigureAwait(false);
                     Interlocked.Increment(ref numberOfDocuments);
                     await Task.Delay(ClientWaitTime, cancellationToken)
                         .ConfigureAwait(ConfigureAwaitOptions.SuppressThrowing);

@@ -18,28 +18,6 @@ database.AddBackgroundWorker(
         }
     });
 
-database.AddBackgroundWorker(
-    "segment writer",
-    async (db, cancellationToken) =>
-    {
-        await foreach (var documentOperation in
-                       db.Journal.WaitToReadAsync(cancellationToken).ConfigureAwait(false))
-        {
-            switch (documentOperation.OperationType)
-            {
-                case DocumentOperationType.Insert:
-                    db.AddToCache(documentOperation.OperationId, documentOperation.Data);
-                    break;
-                case DocumentOperationType.Update:
-                case DocumentOperationType.Delete:
-                default:
-                    throw new NotImplementedException();
-            }
-
-            db.Checkpoint(documentOperation.OperationId);
-        }
-    });
-
 var run = database.RunAsync();
 
 Console.CancelKeyPress += (sender, e) =>
@@ -100,7 +78,7 @@ while (true)
         var data = Encoding.UTF8.GetBytes(commandText, 14, commandText.Length - 14);
 
         var watch = Stopwatch.StartNew();
-        var id = await database.InsertDocumentAsync(data).ConfigureAwait(false);
+        await database.InsertDocumentAsync(data).ConfigureAwait(false);
         Console.WriteLine($"command completed in {watch.ElapsedMilliseconds}ms");
     }
 
