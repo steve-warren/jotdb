@@ -1,6 +1,6 @@
 namespace JotDB.Storage;
 
-public enum JournalEntryType : byte
+public enum TransactionType : byte
 {
     Insert = 1,
     Update = 2,

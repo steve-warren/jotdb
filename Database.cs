@@ -30,7 +30,7 @@ public sealed class Database : IDisposable
         return Journal
             .WriteAsync(
                 document,
-                JournalEntryType.Insert);
+                TransactionType.Insert);
     }
 
     public void AddToCache(ulong documentId, ReadOnlyMemory<byte> document)
@@ -49,10 +49,10 @@ public sealed class Database : IDisposable
     /// <returns>A task that represents the asynchronous operation of running the database.</returns>
     public async Task RunAsync()
     {
-        await OnStartingAsync().ConfigureAwait(false);
-        await OnRunningAsync().ConfigureAwait(false);
-        await OnStoppingAsync().ConfigureAwait(false);
-        await OnStoppedAsync().ConfigureAwait(false);
+        await OnStartingAsync();
+        await OnRunningAsync();
+        await OnStoppingAsync();
+        await OnStoppedAsync();
     }
 
     /// <summary>
@@ -84,7 +84,9 @@ public sealed class Database : IDisposable
         {
             try
             {
+                Console.WriteLine($"starting background worker '{worker.Name}'");
                 worker.Start();
+                Console.WriteLine($"started background worker '{worker.Name}'");
             }
 
             catch (Exception ex)
@@ -116,20 +118,30 @@ public sealed class Database : IDisposable
         {
             try
             {
-                await worker.StopAsync().ConfigureAwait(false);
+                Console.WriteLine($"stopping background worker '{worker.Name}'");
+                await worker.StopAsync();
+                Console.WriteLine($"stopped background worker '{worker.Name}'");
             }
 
             catch (OperationCanceledException)
             {
-                // ignore cancellation exceptions
+                Console.WriteLine($"stopped background worker '{worker.Name}' through cancellation.");
+            }
+
+            catch (Exception ex)
+            {
+                Console.WriteLine($"stopped background worker '{worker.Name}' but an unhandled exception occurred: {ex}");
             }
         }
 
+        Console.WriteLine("journal fsync");
+        Journal.FlushToDisk();
         Journal.Dispose();
     }
 
     private Task OnStoppedAsync()
     {
+        Console.WriteLine("database gracefully shut down.\nit is now safe to turn off your computer.");
         _state = DatabaseState.Stopped;
         return Task.CompletedTask;
     }

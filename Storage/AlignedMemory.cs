@@ -5,7 +5,6 @@ namespace JotDB.Storage;
 
 public readonly unsafe ref struct AlignedMemory
 {
-    private readonly void* _pointer;
     private readonly Span<byte> _span;
 
     /// <summary>
@@ -43,7 +42,7 @@ public readonly unsafe ref struct AlignedMemory
             throw;
         }
 
-        _pointer = pointer;
+        Pointer = pointer;
         Size = (int)size;
         Alignment = (int)alignment;
     }
@@ -52,9 +51,10 @@ public readonly unsafe ref struct AlignedMemory
     public int Alignment { get; }
     public Span<byte> Span =>
         _span;
+    public void* Pointer { get; }
 
     public void Dispose() =>
-        NativeMemory.AlignedFree(_pointer);
+        NativeMemory.AlignedFree(Pointer);
 
     public void Clear() =>
         _span.Clear();

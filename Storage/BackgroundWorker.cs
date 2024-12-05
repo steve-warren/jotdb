@@ -8,8 +8,6 @@ public sealed class BackgroundWorker
     private readonly Database _database;
     private readonly Func<Database, CancellationToken, Task> _backgroundTaskDelegate;
 
-    private Task _backgroundTask = Task.CompletedTask;
-
     public BackgroundWorker(
         Database database,
         string name,
@@ -21,20 +19,18 @@ public sealed class BackgroundWorker
     }
 
     public string Name { get; }
+    public Task BackgroundTask { get; private set; } = Task.CompletedTask;
 
     public void Start()
     {
-        Console.WriteLine($"Starting background worker '{Name}'");
-
-        _backgroundTask = _backgroundTaskDelegate(
+        BackgroundTask = _backgroundTaskDelegate(
             _database,
             _cts.Token);
     }
 
     public Task StopAsync()
     {
-        Console.WriteLine($"Stopping background worker '{Name}'");
         _cts.Cancel();
-        return _backgroundTask;
+        return BackgroundTask;
     }
 }

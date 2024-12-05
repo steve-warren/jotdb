@@ -1,36 +1,14 @@
-using System.Diagnostics;
 using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
-using System.Threading.Channels;
+using System.Security.Cryptography;
 using Microsoft.Win32.SafeHandles;
 
 namespace JotDB.Storage;
 
-[Flags]
-public enum JournalEntryOptions : byte
-{
-    None = 0
-}
-
-[StructLayout(LayoutKind.Sequential, Pack = 1)]
-public struct JournalEntryHeader
-{
-    public uint TransactionId;
-    public long Timestamp;
-    public JournalEntryOptions Flags;
-    public ulong PageOffset;
-}
-
 public sealed class JournalFile : IDisposable
 {
-    private const int JOURNAL_FLUSH_BUFFER_SIZE = 8;
-    private const int JOURNAL_MEMORY_BUFFER_SIZE = 128;
-
-    private readonly Channel<JournalEntry> _inboundBuffer;
-    private readonly JournalEntry[] _flushBuffer;
-
     private readonly SafeFileHandle _file;
-    private ulong _identity;
+    private ulong _transactionId;
+    private readonly TransactionQueue _pendingTransactions;
     private long _offset;
 
     public static JournalFile Open(
@@ -63,28 +41,15 @@ public sealed class JournalFile : IDisposable
     {
         Path = path;
         _offset = offset;
-
         _file = OpenFileHandle(path);
-
-        _inboundBuffer = Channel.CreateBounded<JournalEntry>(
-            new BoundedChannelOptions(JOURNAL_MEMORY_BUFFER_SIZE)
-            {
-                SingleReader = true,
-                SingleWriter = false,
-                AllowSynchronousContinuations = true,
-                FullMode = BoundedChannelFullMode.Wait
-            });
-
-        _flushBuffer = new JournalEntry[JOURNAL_FLUSH_BUFFER_SIZE];
+        _pendingTransactions = new TransactionQueue();
     }
 
     public string Path { get; }
 
-    public void Close() => _inboundBuffer.Writer.TryComplete();
-
     public void Dispose()
     {
-        _inboundBuffer.Writer.TryComplete();
+        _pendingTransactions.Dispose();
         _file.Dispose();
     }
 
@@ -96,37 +61,67 @@ public sealed class JournalFile : IDisposable
     /// <returns>A task that represents the asynchronous write operation. The task result contains the unique operation ID of the written operation.</returns>
     public Task WriteAsync(
         ReadOnlyMemory<byte> data,
-        JournalEntryType entryType)
+        TransactionType entryType)
     {
-        var entry = new JournalEntry
+        var transaction = new Transaction
         {
             Data = data,
-            OperationType = entryType
+            Type = entryType
         };
 
         return Task.WhenAll(
-            _inboundBuffer.Writer.WriteAsync(entry).AsTask(),
-            entry.WaitForCommitAsync(CancellationToken.None)
+            _pendingTransactions.EnqueueAsync(transaction).AsTask(),
+            transaction.WaitAsync(CancellationToken.None)
         );
     }
 
     /// <summary>
-    /// Asynchronously waits for operations to be available and flushes them to the journal file.
+    /// Asynchronously waits for transactions to be available.
     /// </summary>
     /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
     /// <returns>A task that represents the asynchronous flush operation. The task result is true if operations were flushed, otherwise false.</returns>
-    public async Task WaitToFlushAsync(CancellationToken cancellationToken)
+    public ValueTask<bool> WaitAsync(CancellationToken cancellationToken)
     {
-        var reader = _inboundBuffer.Reader;
+        return _pendingTransactions.WaitAsync(cancellationToken);
+    }
 
-        // we can safely cancel here because we're only waiting for the channel to be drained.
-        if (!await reader.WaitToReadAsync(cancellationToken))
-            return;
+    public void FlushToDisk() => RandomAccess.FlushToDisk(_file);
 
+    public unsafe void WriteToDisk()
+    {
+        var size = Unsafe.SizeOf<JournalFrame>();
         using var block = AlignedMemory.Allocate(4096, 4096);
 
-        reader.TryRead(out var item);
+        var bytesLeft = 4096;
+        var offset = 0;
+        var pendingCommits = new List<Transaction>();
 
-        item.Commit();
+        while (_pendingTransactions.TryPeek(out var transaction))
+        {
+            var frame = new JournalFrame
+            {
+                TransactionId = ++_transactionId,
+                Timestamp = DateTime.Now.Ticks
+            };
+
+            bytesLeft -= size + transaction.Data.Length;
+
+            if (bytesLeft < 0)
+                break;
+
+            Unsafe.Write((byte*)block.Pointer + offset, frame);
+
+            offset += size + transaction.Data.Length;
+
+            _pendingTransactions.TryDequeue(out _);
+            pendingCommits.Add(transaction);
+        }
+
+        RandomAccess.Write(_file, block.Span, _offset);
+
+        _offset += 4096;
+
+        foreach (var transaction in pendingCommits)
+            transaction.Commit();
     }
 }

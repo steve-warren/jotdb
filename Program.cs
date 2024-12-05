@@ -12,10 +12,20 @@ database.AddBackgroundWorker(
     {
         var journal = db.Journal;
 
-        while (!cancellationToken.IsCancellationRequested)
+        while (await journal.WaitAsync(cancellationToken))
         {
-            await journal.WaitToFlushAsync(cancellationToken).ConfigureAwait(false);
+            Console.WriteLine("writing transactions to disk.");
+            journal.WriteToDisk();
+            Console.WriteLine("written transactions to disk.");
         }
+    });
+
+database.AddBackgroundWorker(
+    "exception thrower",
+    async (db, cancellationToken) =>
+    {
+        await Task.Delay(1000, CancellationToken.None);
+        throw new NotSupportedException();
     });
 
 var run = database.RunAsync();
@@ -30,7 +40,8 @@ Console.CancelKeyPress += (sender, e) =>
 // macOS: quit and force quit
 AppDomain.CurrentDomain.ProcessExit += (sender, e) =>
 {
-    database.TryShutdown();
+    if (!database.TryShutdown()) return;
+
     run.Wait();
     Console.WriteLine("process exited");
 };
@@ -53,7 +64,7 @@ if (args.Length > 0 &&
         DocumentStream = Console.OpenStandardInput()
     };
 
-    await command.ExecuteAsync(CancellationToken.None).ConfigureAwait(false);
+    await command.ExecuteAsync(CancellationToken.None);
     return;
 }
 
@@ -78,7 +89,7 @@ while (true)
         var data = Encoding.UTF8.GetBytes(commandText, 14, commandText.Length - 14);
 
         var watch = Stopwatch.StartNew();
-        await database.InsertDocumentAsync(data).ConfigureAwait(false);
+        await database.InsertDocumentAsync(data);
         Console.WriteLine($"command completed in {watch.ElapsedMilliseconds}ms");
     }
 
@@ -103,4 +114,4 @@ while (true)
 
 database.TryShutdown();
 
-await run.ConfigureAwait(false);
+await run;
