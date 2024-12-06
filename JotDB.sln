@@ -1,0 +1,28 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "JotDB", "src\JotDB.csproj", "{398B20E1-467A-42DE-8E3F-543DF7D3CB9D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "JotDB.Tests", "tests\JotDB.Tests\JotDB.Tests.csproj", "{BCF4F7A9-ED36-4156-9C0A-199F1D541FA1}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{398B20E1-467A-42DE-8E3F-543DF7D3CB9D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{398B20E1-467A-42DE-8E3F-543DF7D3CB9D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{398B20E1-467A-42DE-8E3F-543DF7D3CB9D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{398B20E1-467A-42DE-8E3F-543DF7D3CB9D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{BCF4F7A9-ED36-4156-9C0A-199F1D541FA1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{BCF4F7A9-ED36-4156-9C0A-199F1D541FA1}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{BCF4F7A9-ED36-4156-9C0A-199F1D541FA1}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{BCF4F7A9-ED36-4156-9C0A-199F1D541FA1}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal
