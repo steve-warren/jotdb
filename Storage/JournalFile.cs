@@ -10,6 +10,7 @@ public sealed class JournalFile : IDisposable
     private ulong _transactionId;
     private readonly TransactionQueue _pendingTransactions;
     private long _offset;
+    private MD5 _md5 = MD5.Create();
 
     public static JournalFile Open(
         string path)
@@ -64,11 +65,11 @@ public sealed class JournalFile : IDisposable
         TransactionType entryType)
     {
         var transaction = new Transaction
-        {
-            Data = data,
-            Type = entryType
-        };
-
+                {
+                    Data = data,
+                    Type = entryType
+                };
+        
         return Task.WhenAll(
             _pendingTransactions.EnqueueAsync(transaction).AsTask(),
             transaction.WaitAsync(CancellationToken.None)
@@ -89,7 +90,7 @@ public sealed class JournalFile : IDisposable
 
     public unsafe void WriteToDisk()
     {
-        var size = Unsafe.SizeOf<JournalFrame>();
+        var size = Unsafe.SizeOf<JournalPageHeader>();
         using var block = AlignedMemory.Allocate(4096, 4096);
 
         var bytesLeft = 4096;
@@ -98,11 +99,18 @@ public sealed class JournalFile : IDisposable
 
         while (_pendingTransactions.TryPeek(out var transaction))
         {
-            var frame = new JournalFrame
+            var frame = new JournalPageHeader
             {
                 TransactionId = ++_transactionId,
                 Timestamp = DateTime.Now.Ticks
             };
+
+            var hashSpan = new Span<byte>(frame.Checksum, 16);
+
+            _md5.TryComputeHash(
+                source: transaction.Data.Span,
+                destination: hashSpan,
+                out var _);
 
             bytesLeft -= size + transaction.Data.Length;
 
