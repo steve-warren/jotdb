@@ -51,7 +51,7 @@ public sealed class JournalFile : IDisposable
 
     public void FlushToDisk() => RandomAccess.FlushToDisk(_file);
 
-    public unsafe void WriteToDisk(
+    public void WriteToDisk(
         List<DataPage> pages)
     {
         Console.WriteLine("writing to journal on disk.");
