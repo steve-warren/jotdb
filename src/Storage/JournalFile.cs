@@ -52,8 +52,14 @@ public sealed class JournalFile : IDisposable
     public void FlushToDisk() => RandomAccess.FlushToDisk(_file);
 
     public unsafe void WriteToDisk(
-        LinkedList<DataPage> transactions)
+        List<DataPage> pages)
     {
         Console.WriteLine("writing to journal on disk.");
+
+        foreach (var page in pages)
+        {
+            RandomAccess.Write(_file, page.Span, _offset);
+            _offset += page.Size;
+        }
     }
 }

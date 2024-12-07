@@ -14,7 +14,6 @@ public sealed class TransactionQueue : IDisposable
             {
                 SingleReader = true,
                 SingleWriter = false,
-                AllowSynchronousContinuations = true,
                 FullMode = BoundedChannelFullMode.Wait
             });
     }

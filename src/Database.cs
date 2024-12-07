@@ -10,13 +10,12 @@ public sealed class Database : IDisposable
     private volatile DatabaseState _state = DatabaseState.Stopped;
     private readonly TransactionQueue _transactions = new();
     private readonly CancellationTokenSource _shutdownTokenSource = new();
-    private readonly LinkedList<DataPage> _pages = [];
     private Task _flushTransactionsToDataPagesTask = Task.CompletedTask;
 
     public Database()
     {
+        File.Delete("journal.txt");
         Journal = JournalFile.Open("journal.txt");
-        AllocatePage();
     }
 
     public JournalFile Journal { get; }
@@ -42,14 +41,22 @@ public sealed class Database : IDisposable
             _transactions.EnqueueAsync(transaction).AsTask(),
             transaction.WaitAsync(CancellationToken.None));
     }
+    
+    int _pageCount = 0;
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private void AllocatePage()
+    private DataPage AllocatePage()
     {
-        Console.WriteLine("allocating new page");
-        _pages.AddLast(new DataPage(
-            pageNumber: (ulong)_pages.Count + 1,
-            timestamp: (ulong)DateTime.Now.Ticks));
+        _pageCount++;
+        
+        Console.WriteLine("allocating new page " + _pageCount);
+        var page = new DataPage(
+            pageNumber: (ulong)_pageCount,
+            timestamp: (ulong)DateTime.Now.Ticks);
+
+        page.ZeroUnusedBytes();
+
+        return page;
     }
 
     private async Task FlushTransactionsToDataPagesAsync()
@@ -59,6 +66,8 @@ public sealed class Database : IDisposable
 
         while (await _transactions.WaitAsync(token))
         {
+            List<DataPage> pages = [AllocatePage()];
+            
             // transactions are available for write
             var transactions = _transactions
                 .GetConsumingEnumerable();
@@ -67,19 +76,21 @@ public sealed class Database : IDisposable
             {
                 foreach (var transaction in transactions)
                 {
-                    if (!_pages.Last.Value.TryWrite(transaction.Data.Span))
+                    if (!pages.Last().TryWrite(transaction.Data.Span))
                     {
                         // page is full, allocate a new one
-                        AllocatePage();
+                        pages.Add(AllocatePage());
 
-                        if (!_pages.Last.Value.TryWrite(transaction.Data.Span))
+                        if (!pages.Last().TryWrite(transaction.Data.Span))
                             throw new InvalidOperationException("failed to write to data page.");
                     }
-                    
+
                     pendingCommits.Enqueue(transaction);
                 }
 
-                Journal.WriteToDisk(_pages);
+                Console.WriteLine($"flushed {pendingCommits.Count} transactions across {pages.Count} data pages.");
+
+                Journal.WriteToDisk(pages);
             }
 
             finally
@@ -88,6 +99,12 @@ public sealed class Database : IDisposable
                 // even if an exception is thrown to avoid deadlocks
                 while (pendingCommits.Count > 0)
                     pendingCommits.Dequeue().Commit();
+            }
+
+            foreach (var page in pages)
+            {
+                Console.WriteLine($"freeing page {page.PageNumber}.");
+                page.Dispose();
             }
         }
     }

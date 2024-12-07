@@ -1,6 +1,5 @@
 ﻿using System.Diagnostics;
 using JotDB;
-using JotDB.CommandLine;
 
 using var database = new Database();
 var run = database.RunAsync();
@@ -28,27 +27,34 @@ AppDomain.CurrentDomain.UnhandledException += (_, e) =>
     Console.WriteLine($"Unhandled exception occurred.");
 };
 
-if (args.Length > 0 &&
-    args[0] == "write")
+var data =
+    """
+          {
+            "transaction_id": 1,
+            "transaction_date": "8/1/2022",
+            "transaction_amount": 7908.04,
+            "transaction_type": "transfer",
+            "account_number": 5106756131,
+            "merchant_name": "Skalith",
+            "transaction_category": "entertainment",
+            "transaction_description": "justo aliquam quis turpis eget elit sodales scelerisque mauris sit amet eros suspendisse accumsan tortor quis",
+            "card_type": "amex",
+            "location": "PO Box 70107"
+          },
+        """u8.ToArray();
+
+for (var i = 0; i < 24; i++)
 {
-    Console.WriteLine("starting write test...");
-    var command = new WriteTestCommand(database)
+    var id = i;
+    Task.Run(async () =>
     {
-        NumberOfClients = 8,
-        ClientWaitTime = 100,
-        DocumentStream = Console.OpenStandardInput()
-    };
-
-    await command.ExecuteAsync(CancellationToken.None);
-    return;
+        while (true)
+        {
+            var watch = Stopwatch.StartNew();
+            await database.InsertDocumentAsync(data);
+            Console.WriteLine($"task {id}: command completed in {watch.ElapsedMilliseconds}ms");
+        }
+    });
 }
 
-while (true)
-{
-    var data = """{ "michael" : "scott" }"""u8.ToArray();
-
-    var watch = Stopwatch.StartNew();
-    await database.InsertDocumentAsync(data);
-    Console.WriteLine($"command completed in {watch.ElapsedMilliseconds}ms");
-    await Task.Delay(1_000);
-}
+run.Wait();

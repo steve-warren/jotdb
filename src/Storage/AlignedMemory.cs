@@ -1,9 +1,10 @@
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
 namespace JotDB.Storage;
 
-public readonly unsafe struct AlignedMemory : IDisposable
+public readonly unsafe struct AlignedMemory
 {
     /// <summary>
     /// Allocates a new <see cref="AlignedMemory"/> with the specified size and alignment.
@@ -26,7 +27,8 @@ public readonly unsafe struct AlignedMemory : IDisposable
         nuint size,
         nuint alignment)
     {
-        Pointer = NativeMemory.AlignedAlloc(size, alignment);;
+        Pointer = NativeMemory.AlignedAlloc(size, alignment);
+        ;
         Size = (int)size;
         Alignment = (int)alignment;
     }
@@ -39,6 +41,8 @@ public readonly unsafe struct AlignedMemory : IDisposable
 
     public void* Pointer { get; }
 
-    public void Dispose() =>
+    public void Dispose()
+    {
         NativeMemory.AlignedFree(Pointer);
+    }
 }
