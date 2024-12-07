@@ -5,11 +5,11 @@ namespace JotDB.Storage;
 public sealed class TransactionQueue : IDisposable
 {
     private const int JOURNAL_MEMORY_BUFFER_SIZE = 128;
-    private readonly Channel<Transaction> _pendingTransactions;
+    private readonly Channel<StorageTransaction> _pendingTransactions;
 
     public TransactionQueue()
     {
-        _pendingTransactions = Channel.CreateBounded<Transaction>(
+        _pendingTransactions = Channel.CreateBounded<StorageTransaction>(
             new BoundedChannelOptions(JOURNAL_MEMORY_BUFFER_SIZE)
             {
                 SingleReader = true,
@@ -22,14 +22,14 @@ public sealed class TransactionQueue : IDisposable
     public ValueTask<bool> WaitAsync(CancellationToken cancellationToken = default) =>
         _pendingTransactions.Reader.WaitToReadAsync(cancellationToken);
 
-    public bool TryPeek(out Transaction? transaction) =>
-        _pendingTransactions.Reader.TryPeek(out transaction);
+    public IEnumerable<StorageTransaction> GetConsumingEnumerable()
+    {
+        while (_pendingTransactions.Reader.TryRead(out var transaction))
+            yield return transaction;
+    }
 
-    public bool TryDequeue(out Transaction? transaction) =>
-        _pendingTransactions.Reader.TryRead(out transaction);
-
-    public ValueTask EnqueueAsync(Transaction transaction) =>
-        _pendingTransactions.Writer.WriteAsync(transaction);
+    public ValueTask EnqueueAsync(StorageTransaction storageTransaction) =>
+        _pendingTransactions.Writer.WriteAsync(storageTransaction);
 
     public void Dispose() =>
         _pendingTransactions.Writer.TryComplete();

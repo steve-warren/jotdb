@@ -1,8 +1,9 @@
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
 
 namespace JotDB.Storage;
 
-public sealed class Transaction
+public sealed class StorageTransaction
 {
     private readonly TaskCompletionSource _tcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
@@ -19,7 +20,8 @@ public sealed class Transaction
     /// </summary>
     public void Commit()
     {
-        _tcs.TrySetResult();
+        var result = _tcs.TrySetResult();
+        Debug.Assert(result, "Unable to commit storage transaction.");
     }
 
     public void Abort(Exception exception)

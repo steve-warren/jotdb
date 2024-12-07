@@ -3,21 +3,6 @@ using JotDB;
 using JotDB.CommandLine;
 
 using var database = new Database();
-
-database.AddBackgroundWorker(
-    "journal writer",
-    async (db, cancellationToken) =>
-    {
-        var journal = db.Journal;
-
-        while (await journal.WaitAsync(cancellationToken))
-        {
-            Console.WriteLine("writing transactions to disk.");
-            journal.WriteToDisk();
-            Console.WriteLine("written transactions to disk.");
-        }
-    });
-
 var run = database.RunAsync();
 
 Console.CancelKeyPress += (_, e) =>
@@ -65,5 +50,5 @@ while (true)
     var watch = Stopwatch.StartNew();
     await database.InsertDocumentAsync(data);
     Console.WriteLine($"command completed in {watch.ElapsedMilliseconds}ms");
-    await Task.Delay(10000);
+    await Task.Delay(1_000);
 }

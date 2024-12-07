@@ -7,10 +7,7 @@ namespace JotDB.Storage;
 public sealed class JournalFile : IDisposable
 {
     private readonly SafeFileHandle _file;
-    private ulong _transactionId;
-    private readonly TransactionQueue _pendingTransactions;
     private long _offset;
-    private MD5 _md5 = MD5.Create();
 
     public static JournalFile Open(
         string path)
@@ -43,97 +40,20 @@ public sealed class JournalFile : IDisposable
         Path = path;
         _offset = offset;
         _file = OpenFileHandle(path);
-        _pendingTransactions = new TransactionQueue();
     }
 
     public string Path { get; }
 
     public void Dispose()
     {
-        _pendingTransactions.Dispose();
         _file.Dispose();
-    }
-
-    public Task WriteAsync(
-        DataPage page)
-    {
-        throw new NotImplementedException();
-    }
-
-    /// <summary>
-    /// Asynchronously writes an entry to the journal file.
-    /// </summary>
-    /// <param name="data">The data to be written to the journal file.</param>
-    /// <param name="entryType">The type of journal entry operation (Insert, Update, Delete).</param>
-    /// <returns>A task that represents the asynchronous write operation. The task result contains the unique operation ID of the written operation.</returns>
-    public Task WriteAsync(
-        ReadOnlyMemory<byte> data,
-        TransactionType entryType)
-    {
-        var transaction = new Transaction
-                {
-                    Data = data,
-                    Type = entryType
-                };
-        
-        return Task.WhenAll(
-            _pendingTransactions.EnqueueAsync(transaction).AsTask(),
-            transaction.WaitAsync(CancellationToken.None)
-        );
-    }
-
-    /// <summary>
-    /// Asynchronously waits for transactions to be available.
-    /// </summary>
-    /// <param name="cancellationToken">A token to monitor for cancellation requests.</param>
-    /// <returns>A task that represents the asynchronous flush operation. The task result is true if operations were flushed, otherwise false.</returns>
-    public ValueTask<bool> WaitAsync(CancellationToken cancellationToken)
-    {
-        return _pendingTransactions.WaitAsync(cancellationToken);
     }
 
     public void FlushToDisk() => RandomAccess.FlushToDisk(_file);
 
-    public unsafe void WriteToDisk()
+    public unsafe void WriteToDisk(
+        LinkedList<DataPage> transactions)
     {
-        var size = Unsafe.SizeOf<JournalPageHeader>();
-        using var block = AlignedMemory.Allocate(4096, 4096);
-
-        var bytesLeft = 4096;
-        var offset = 0;
-        var pendingCommits = new List<Transaction>();
-
-        while (_pendingTransactions.TryPeek(out var transaction))
-        {
-            var frame = new JournalPageHeader
-            {
-                TransactionId = ++_transactionId,
-                Timestamp = DateTime.Now.Ticks
-            };
-
-            _md5.TryComputeHash(
-                source: transaction.Data.Span,
-                destination: frame.Checksum,
-                out var _);
-
-            bytesLeft -= size + transaction.Data.Length;
-
-            if (bytesLeft < 0)
-                break;
-
-            Unsafe.Write((byte*)block.Pointer + offset, frame);
-
-            offset += size + transaction.Data.Length;
-
-            _pendingTransactions.TryDequeue(out _);
-            pendingCommits.Add(transaction);
-        }
-
-        RandomAccess.Write(_file, block.Span, _offset);
-
-        _offset += 4096;
-
-        foreach (var transaction in pendingCommits)
-            transaction.Commit();
+        Console.WriteLine("writing to journal on disk.");
     }
 }
