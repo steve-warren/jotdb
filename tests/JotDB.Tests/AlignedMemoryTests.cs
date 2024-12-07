@@ -7,7 +7,7 @@ public class AlignedMemoryTests
     [Fact]
     public void Allocation_Should_Return_Requested_Size()
     {
-        var memory = AlignedMemory.Allocate(
+        using var memory = AlignedMemory.Allocate(
             size: 4096,
             alignment: 4096);
 

@@ -1,8 +1,6 @@
 ﻿using System.Diagnostics;
-using System.Text;
 using JotDB;
 using JotDB.CommandLine;
-using JotDB.Storage;
 
 using var database = new Database();
 
@@ -20,17 +18,9 @@ database.AddBackgroundWorker(
         }
     });
 
-database.AddBackgroundWorker(
-    "exception thrower",
-    async (db, cancellationToken) =>
-    {
-        await Task.Delay(1000, CancellationToken.None);
-        throw new NotSupportedException();
-    });
-
 var run = database.RunAsync();
 
-Console.CancelKeyPress += (sender, e) =>
+Console.CancelKeyPress += (_, e) =>
 {
     database.TryShutdown();
     run.Wait();
@@ -38,15 +28,15 @@ Console.CancelKeyPress += (sender, e) =>
 };
 
 // macOS: quit and force quit
-AppDomain.CurrentDomain.ProcessExit += (sender, e) =>
+AppDomain.CurrentDomain.ProcessExit += (_, e) =>
 {
-    if (!database.TryShutdown()) return;
+    database.TryShutdown();
 
     run.Wait();
     Console.WriteLine("process exited");
 };
 
-AppDomain.CurrentDomain.UnhandledException += (sender, e) =>
+AppDomain.CurrentDomain.UnhandledException += (_, e) =>
 {
     database.TryShutdown();
     run.Wait();
@@ -70,48 +60,10 @@ if (args.Length > 0 &&
 
 while (true)
 {
-    Console.Write("jot> ");
-    var commandText = "";
+    var data = """{ "michael" : "scott" }"""u8.ToArray();
 
-    var key = Console.ReadKey(false);
-
-    if (key.Key == ConsoleKey.UpArrow)
-    {
-        Console.Write("insert into c ");
-        commandText = "insert into c " + Console.ReadLine();
-    }
-
-    else
-        commandText = key.KeyChar + Console.ReadLine();
-
-    if (commandText.StartsWith("insert into c "))
-    {
-        var data = Encoding.UTF8.GetBytes(commandText, 14, commandText.Length - 14);
-
-        var watch = Stopwatch.StartNew();
-        await database.InsertDocumentAsync(data);
-        Console.WriteLine($"command completed in {watch.ElapsedMilliseconds}ms");
-    }
-
-    else if (commandText.StartsWith("select * from c"))
-    {
-        foreach (var id in database.GetCachedDocuments())
-        {
-            Console.WriteLine(id);
-        }
-    }
-
-    else if (commandText == "exit")
-    {
-        break;
-    }
-
-    else
-    {
-        Console.WriteLine("unknown command");
-    }
+    var watch = Stopwatch.StartNew();
+    await database.InsertDocumentAsync(data);
+    Console.WriteLine($"command completed in {watch.ElapsedMilliseconds}ms");
+    await Task.Delay(10000);
 }
-
-database.TryShutdown();
-
-await run;

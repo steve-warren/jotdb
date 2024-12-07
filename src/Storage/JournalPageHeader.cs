@@ -3,11 +3,12 @@ using System.Runtime.InteropServices;
 namespace JotDB.Storage;
 
 [StructLayout(LayoutKind.Sequential, Pack = 1)]
-public unsafe struct JournalPageHeader
+public struct JournalPageHeader
 {
     public ulong TransactionId;
     public long Timestamp;
     public JournalEntryOptions Flags;
     public ulong PageOffset;
-    public fixed byte Checksum[16];
+    [MarshalAs(UnmanagedType.ByValArray, SizeConst = 16)]
+    public byte[] Checksum;
 }

@@ -54,6 +54,12 @@ public sealed class JournalFile : IDisposable
         _file.Dispose();
     }
 
+    public Task WriteAsync(
+        DataPage page)
+    {
+        throw new NotImplementedException();
+    }
+
     /// <summary>
     /// Asynchronously writes an entry to the journal file.
     /// </summary>
@@ -105,11 +111,9 @@ public sealed class JournalFile : IDisposable
                 Timestamp = DateTime.Now.Ticks
             };
 
-            var hashSpan = new Span<byte>(frame.Checksum, 16);
-
             _md5.TryComputeHash(
                 source: transaction.Data.Span,
-                destination: hashSpan,
+                destination: frame.Checksum,
                 out var _);
 
             bytesLeft -= size + transaction.Data.Length;

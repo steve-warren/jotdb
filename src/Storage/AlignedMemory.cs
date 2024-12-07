@@ -3,10 +3,8 @@ using System.Runtime.InteropServices;
 
 namespace JotDB.Storage;
 
-public readonly unsafe ref struct AlignedMemory
+public readonly unsafe struct AlignedMemory : IDisposable
 {
-    private readonly Span<byte> _span;
-
     /// <summary>
     /// Allocates a new <see cref="AlignedMemory"/> with the specified size and alignment.
     /// </summary>
@@ -28,34 +26,19 @@ public readonly unsafe ref struct AlignedMemory
         nuint size,
         nuint alignment)
     {
-        var pointer = NativeMemory.AlignedAlloc(size, alignment);
-
-        try
-        {
-            _span = new Span<byte>(pointer, (int)size);
-            _span.Clear();
-        }
-
-        catch
-        {
-            Dispose();
-            throw;
-        }
-
-        Pointer = pointer;
+        Pointer = NativeMemory.AlignedAlloc(size, alignment);;
         Size = (int)size;
         Alignment = (int)alignment;
     }
 
     public int Size { get; }
     public int Alignment { get; }
+
     public Span<byte> Span =>
-        _span;
+        new(Pointer, Size);
+
     public void* Pointer { get; }
 
     public void Dispose() =>
         NativeMemory.AlignedFree(Pointer);
-
-    public void Clear() =>
-        _span.Clear();
 }
