@@ -4,13 +4,12 @@ namespace JotDB.Storage;
 
 public sealed class TransactionQueue : IDisposable
 {
-    private const int JOURNAL_MEMORY_BUFFER_SIZE = 128;
     private readonly Channel<StorageTransaction> _pendingTransactions;
 
     public TransactionQueue()
     {
         _pendingTransactions = Channel.CreateBounded<StorageTransaction>(
-            new BoundedChannelOptions(JOURNAL_MEMORY_BUFFER_SIZE)
+            new BoundedChannelOptions(Environment.ProcessorCount * 2)
             {
                 SingleReader = true,
                 SingleWriter = false,

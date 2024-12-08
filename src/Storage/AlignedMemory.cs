@@ -6,6 +6,8 @@ namespace JotDB.Storage;
 
 public readonly unsafe struct AlignedMemory
 {
+    private readonly void* _pointer;
+
     /// <summary>
     /// Allocates a new <see cref="AlignedMemory"/> with the specified size and alignment.
     /// </summary>
@@ -27,7 +29,7 @@ public readonly unsafe struct AlignedMemory
         nuint size,
         nuint alignment)
     {
-        Pointer = NativeMemory.AlignedAlloc(size, alignment);
+        _pointer = NativeMemory.AlignedAlloc(size, alignment);
         ;
         Size = (int)size;
         Alignment = (int)alignment;
@@ -37,12 +39,10 @@ public readonly unsafe struct AlignedMemory
     public int Alignment { get; }
 
     public Span<byte> Span =>
-        new(Pointer, Size);
-
-    public void* Pointer { get; }
+        new(_pointer, Size);
 
     public void Dispose()
     {
-        NativeMemory.AlignedFree(Pointer);
+        NativeMemory.AlignedFree(_pointer);
     }
 }
