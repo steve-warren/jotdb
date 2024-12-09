@@ -43,7 +43,7 @@ var data =
           },
         """u8.ToArray();
 
-for (var i = 0; i < 4; i++)
+for (var i = 0; i < Environment.ProcessorCount; i++)
 {
     var id = i;
     Task.Run(async () =>

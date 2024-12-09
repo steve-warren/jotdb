@@ -1,5 +1,7 @@
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
+using JotDB.Platform.MacOS;
 using Microsoft.Win32.SafeHandles;
 
 namespace JotDB.Storage;
@@ -19,18 +21,31 @@ public sealed class JournalFile : IDisposable
 
     private static SafeFileHandle OpenFileHandle(string path)
     {
-        const FileOptions FILE_FLAG_NO_BUFFERING = (FileOptions)0x20000000;
         var fileOptions = FileOptions.WriteThrough;
 
         if (OperatingSystem.IsWindows())
+        {
+            const FileOptions FILE_FLAG_NO_BUFFERING = (FileOptions)0x20000000;
             fileOptions |= FILE_FLAG_NO_BUFFERING;
+        }
 
-        return File.OpenHandle(
+        var handle = File.OpenHandle(
             path: path,
             mode: FileMode.OpenOrCreate,
             access: FileAccess.ReadWrite,
             share: FileShare.None,
             options: fileOptions);
+
+        if (!OperatingSystem.IsMacOS()) return handle;
+
+        const int F_NOCACHE = 48;
+
+        var fileDescriptor = handle.DangerousGetHandle().ToInt32();
+        var result = MacSyscall.fcntl(fileDescriptor, F_NOCACHE, 1);
+
+        Debug.Assert(result != -1, "fcntl returned an error");
+
+        return handle;
     }
 
     private JournalFile(

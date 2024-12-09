@@ -30,13 +30,10 @@ public readonly unsafe struct AlignedMemory
         nuint alignment)
     {
         _pointer = NativeMemory.AlignedAlloc(size, alignment);
-        ;
         Size = (int)size;
-        Alignment = (int)alignment;
     }
 
     public int Size { get; }
-    public int Alignment { get; }
 
     public Span<byte> Span =>
         new(_pointer, Size);

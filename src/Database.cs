@@ -68,7 +68,6 @@ public sealed class Database : IDisposable
         {
             List<DataPage> pages = [AllocatePage()];
 
-            // transactions are available for write
             var transactions = _transactions
                 .GetConsumingEnumerable();
 
@@ -87,7 +86,7 @@ public sealed class Database : IDisposable
                         if (!page.TryWrite(transaction.Data.Span))
                             throw new InvalidOperationException("failed to write to data page.");
                     }
-                    
+
                     Console.WriteLine($"{transaction.Data.Length} bytes written to page {page.PageNumber}.");
 
                     pendingCommits.Add(transaction);
@@ -106,7 +105,7 @@ public sealed class Database : IDisposable
                     pendingCommit.Commit();
 
                 pendingCommits.Clear();
-                
+
                 foreach (var page in pages)
                 {
                     Console.WriteLine($"freeing page {page.PageNumber}.");
@@ -151,7 +150,9 @@ public sealed class Database : IDisposable
     {
         _state = DatabaseState.Starting;
 
-        Console.WriteLine("starting database");
+        Console.WriteLine("starting JotDB");
+        Console.WriteLine($"{Environment.OSVersion.VersionString} ({Environment.OSVersion.Platform})");
+        Console.WriteLine($"{Environment.ProcessorCount} cores");
 
         foreach (var worker in _backgroundWorkers)
         {
