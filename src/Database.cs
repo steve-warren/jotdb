@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using System.Runtime.CompilerServices;
 using JotDB.Storage;
 
@@ -32,17 +31,17 @@ public sealed class Database : IDisposable
         _backgroundWorkers.Add(worker);
     }
 
-    public Task InsertDocumentAsync(ReadOnlyMemory<byte> document)
+    public async Task InsertDocumentAsync(ReadOnlyMemory<byte> document)
     {
-        var transaction = new StorageTransaction
+        using var transaction = new StorageTransaction(15_000)
         {
             Data = document,
             Type = TransactionType.Insert
         };
 
-        return Task.WhenAll(
-            _transactions.EnqueueAsync(transaction).AsTask(),
-            transaction.WaitAsync(CancellationToken.None));
+        await _transactions.EnqueueAsync(transaction).ConfigureAwait(false);
+
+        await transaction.WaitAsync().ConfigureAwait(false);
     }
 
     static int _pageCount = 0;

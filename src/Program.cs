@@ -43,7 +43,7 @@ var data =
           },
         """u8.ToArray();
 
-for (var i = 0; i < Environment.ProcessorCount; i++)
+for (var i = 0; i < 2; i++)
 {
     var id = i;
     Task.Run(async () =>
@@ -53,7 +53,7 @@ for (var i = 0; i < Environment.ProcessorCount; i++)
             var watch = Stopwatch.StartNew();
             await database.InsertDocumentAsync(data);
             Console.WriteLine($"{DateTime.Now} task {id}: command completed in {watch.ElapsedMilliseconds}ms");
-            //await Task.Delay(Random.Shared.Next(4000, 4100));
+            await Task.Delay(Random.Shared.Next(4000, 4100));
         }
     });
 }

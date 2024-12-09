@@ -1,32 +1,36 @@
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
+using JotDB.Threading;
 
 namespace JotDB.Storage;
 
-public sealed class StorageTransaction
+public sealed class StorageTransaction : IDisposable
 {
-    private readonly TaskCompletionSource _tcs = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private readonly AsyncManualResetEvent _mre;
+    private readonly CancellationTokenSource _cts;
 
-    /// <summary>
-    /// Gets a task that represents the asynchronous write operation's completion status for the journal entry.
-    /// The task completes when the entry has been successfully written and flushed to the durable storage.
-    /// </summary>
+    public StorageTransaction(int timeout)
+    {
+        _cts = new CancellationTokenSource(timeout);
+        _mre = new AsyncManualResetEvent(_cts.Token);
+    }
+
     public ReadOnlyMemory<byte> Data { get; init; }
 
     public TransactionType Type { get; init; }
+    public bool IsCommitted => _mre.IsSet;
 
     /// <summary>
     /// Marks the journal entry as written to disk and sets the task result.
     /// </summary>
     public void Commit()
     {
-        var result = _tcs.TrySetResult();
-        Debug.Assert(result, "Unable to commit storage transaction.");
+        _mre.Set();
     }
 
-    public void Abort(Exception exception)
+    public void Rollback(Exception exception)
     {
-        _tcs.TrySetException(exception);
+        _mre.SetException(exception);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -35,15 +39,15 @@ public sealed class StorageTransaction
         Data.Span.CopyTo(destination.Slice(offset, Data.Length));
     }
 
-    /// <summary>
-    /// Waits asynchronously until the journal entry has been marked as written, or the cancellation token is triggered.
-    /// </summary>
-    /// <param name="cancellationToken">Token to observe while waiting for the task to complete.</param>
-    /// <returns>A task representing the asynchronous operation.</returns>
-    public Task WaitAsync(CancellationToken cancellationToken)
+    public Task WaitAsync()
     {
-        cancellationToken.Register(() => _tcs.TrySetCanceled());
+        return _mre.WaitAsync();
+    }
 
-        return _tcs.Task;
+    public void Dispose()
+    {
+        _cts.Cancel();
+        _mre.Dispose();
+        _cts.Dispose();
     }
 }
