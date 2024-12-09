@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Runtime.CompilerServices;
 using JotDB.Storage;
 
@@ -11,11 +12,13 @@ public sealed class Database : IDisposable
     private readonly TransactionQueue _transactions = new();
     private readonly CancellationTokenSource _shutdownTokenSource = new();
     private Task _flushTransactionsToDataPagesTask = Task.CompletedTask;
+    private readonly JournalPagePool _pool;
 
-    public Database()
+    public unsafe Database()
     {
         File.Delete("journal.txt");
         Journal = JournalFile.Open("journal.txt");
+        _pool = new JournalPagePool(Environment.ProcessorCount, &AllocatePage);
     }
 
     public JournalFile Journal { get; }
@@ -42,46 +45,43 @@ public sealed class Database : IDisposable
             transaction.WaitAsync(CancellationToken.None));
     }
 
-    int _pageCount = 0;
+    static int _pageCount = 0;
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private DataPage AllocatePage()
+    private static JournalPage AllocatePage()
     {
         _pageCount++;
 
         Console.WriteLine($"allocating new page ({_pageCount})");
-        var page = new DataPage(
+        var page = new JournalPage(
             pageNumber: (ulong)_pageCount,
             timestamp: (ulong)DateTime.Now.Ticks);
-
-        page.ZeroUnusedBytes();
 
         return page;
     }
 
-    private async Task FlushTransactionsToDataPagesAsync()
+    private async Task FlushTransactionsToJournalAsync()
     {
         var token = _shutdownTokenSource.Token;
         var pendingCommits = new List<StorageTransaction>();
 
         while (await _transactions.WaitAsync(token))
         {
-            List<DataPage> pages = [AllocatePage()];
-
             var transactions = _transactions
                 .GetConsumingEnumerable();
 
+            var pages = _pool.Rented;
+
             try
             {
+                var page = _pool.Rent();
+
                 foreach (var transaction in transactions)
                 {
-                    var page = pages[^1];
-
                     if (!page.TryWrite(transaction.Data.Span))
                     {
-                        // page is full, allocate a new one
-                        page = AllocatePage();
-                        pages.Add(page);
+                        // page is full, rent a new one
+                        page = _pool.Rent();
 
                         if (!page.TryWrite(transaction.Data.Span))
                             throw new InvalidOperationException("failed to write to data page.");
@@ -100,7 +100,7 @@ public sealed class Database : IDisposable
             finally
             {
                 // ensure that all transactions are committed
-                // even if an exception is thrown to avoid deadlocks
+                // (even if an exception is thrown) to avoid deadlocks
                 foreach (var pendingCommit in pendingCommits)
                     pendingCommit.Commit();
 
@@ -108,8 +108,9 @@ public sealed class Database : IDisposable
 
                 foreach (var page in pages)
                 {
-                    Console.WriteLine($"freeing page {page.PageNumber}.");
-                    page.Dispose();
+                    Console.WriteLine($"returning page {page.PageNumber}.");
+                    page.Reset();
+                    _pool.Return(page);
                 }
             }
         }
@@ -146,7 +147,7 @@ public sealed class Database : IDisposable
     {
     }
 
-    private Task OnStartingAsync()
+    private async Task OnStartingAsync()
     {
         _state = DatabaseState.Starting;
 
@@ -170,9 +171,9 @@ public sealed class Database : IDisposable
             }
         }
 
-        _flushTransactionsToDataPagesTask = FlushTransactionsToDataPagesAsync();
+        await Task.Delay(5000);
 
-        return Task.CompletedTask;
+        _flushTransactionsToDataPagesTask = FlushTransactionsToJournalAsync();
     }
 
     private Task OnRunningAsync()

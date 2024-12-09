@@ -1,6 +1,5 @@
 using System.Diagnostics;
-using System.Runtime.CompilerServices;
-using System.Security.Cryptography;
+using System.Runtime.InteropServices;
 using JotDB.Platform.MacOS;
 using Microsoft.Win32.SafeHandles;
 
@@ -8,7 +7,7 @@ namespace JotDB.Storage;
 
 public sealed class JournalFile : IDisposable
 {
-    private readonly SafeFileHandle _file;
+    private readonly SafeFileHandle _fileHandle;
     private long _offset;
 
     public static JournalFile Open(
@@ -43,7 +42,7 @@ public sealed class JournalFile : IDisposable
         var fileDescriptor = handle.DangerousGetHandle().ToInt32();
         var result = MacSyscall.fcntl(fileDescriptor, F_NOCACHE, 1);
 
-        Debug.Assert(result != -1, "fcntl returned an error");
+        Debug.Assert(result != -1, Marshal.GetLastPInvokeErrorMessage());
 
         return handle;
     }
@@ -54,26 +53,27 @@ public sealed class JournalFile : IDisposable
     {
         Path = path;
         _offset = offset;
-        _file = OpenFileHandle(path);
+        _fileHandle = OpenFileHandle(path);
     }
 
     public string Path { get; }
 
     public void Dispose()
     {
-        _file.Dispose();
+        _fileHandle.Dispose();
     }
 
-    public void FlushToDisk() => RandomAccess.FlushToDisk(_file);
+    public void FlushToDisk() => RandomAccess.FlushToDisk(_fileHandle);
 
     public void WriteToDisk(
-        List<DataPage> pages)
+        HashSet<JournalPage> pages)
     {
         Console.WriteLine("writing to journal on disk.");
 
         foreach (var page in pages)
         {
-            RandomAccess.Write(_file, page.Span, _offset);
+            page.ZeroUnusedBytes();
+            RandomAccess.Write(_fileHandle, page.Span, _offset);
             _offset += page.Size;
         }
     }

@@ -52,8 +52,8 @@ for (var i = 0; i < Environment.ProcessorCount; i++)
         {
             var watch = Stopwatch.StartNew();
             await database.InsertDocumentAsync(data);
-            Console.WriteLine($"task {id}: command completed in {watch.ElapsedMilliseconds}ms");
-            await Task.Delay(Random.Shared.Next(1000, 4000));
+            Console.WriteLine($"{DateTime.Now} task {id}: command completed in {watch.ElapsedMilliseconds}ms");
+            //await Task.Delay(Random.Shared.Next(4000, 4100));
         }
     });
 }

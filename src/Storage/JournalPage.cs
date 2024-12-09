@@ -3,14 +3,14 @@ using Microsoft.Win32.SafeHandles;
 
 namespace JotDB.Storage;
 
-public sealed class DataPage : IDisposable
+public sealed class JournalPage : IDisposable
 {
     private bool _disposed;
     private const nuint SIZE = 4096;
     private const nuint ALIGNMENT = 4096;
     private readonly AlignedMemory _memory;
 
-    public DataPage(
+    public JournalPage(
         ulong pageNumber,
         ulong timestamp)
     {
@@ -43,6 +43,11 @@ public sealed class DataPage : IDisposable
     
     public void ZeroUnusedBytes() =>
         _memory.Span[BytesWritten..].Clear();
+
+    public void Reset()
+    {
+        BytesWritten = 0;
+    }
 
     public void Dispose()
     {
