@@ -1,23 +1,20 @@
-using System.Runtime.CompilerServices;
 using JotDB.Storage;
 
 namespace JotDB;
 
 public sealed class Database : IDisposable
 {
+    private readonly StorageEnvironment _storageEnvironment = new();
     private readonly List<BackgroundWorker> _backgroundWorkers = [];
     private readonly TaskCompletionSource _runningStateTask = new();
     private volatile DatabaseState _state = DatabaseState.Stopped;
-    private readonly TransactionQueue _transactions = new();
     private readonly CancellationTokenSource _shutdownTokenSource = new();
     private Task _flushTransactionsToDataPagesTask = Task.CompletedTask;
-    private readonly JournalPagePool _pool;
 
     public unsafe Database()
     {
         File.Delete("journal.txt");
         Journal = JournalFile.Open("journal.txt");
-        _pool = new JournalPagePool(Environment.ProcessorCount, &AllocatePage);
     }
 
     public JournalFile Journal { get; }
@@ -33,86 +30,9 @@ public sealed class Database : IDisposable
 
     public async Task InsertDocumentAsync(ReadOnlyMemory<byte> document)
     {
-        using var transaction = new StorageTransaction(15_000)
-        {
-            Data = document,
-            Type = TransactionType.Insert
-        };
+        using var transaction = _storageEnvironment.CreateTransaction(document);
 
-        await _transactions.EnqueueAsync(transaction).ConfigureAwait(false);
-
-        await transaction.WaitAsync().ConfigureAwait(false);
-    }
-
-    static int _pageCount = 0;
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    private static JournalPage AllocatePage()
-    {
-        _pageCount++;
-
-        Console.WriteLine($"allocating new page ({_pageCount})");
-        var page = new JournalPage(
-            pageNumber: (ulong)_pageCount,
-            timestamp: (ulong)DateTime.Now.Ticks);
-
-        return page;
-    }
-
-    private async Task FlushTransactionsToJournalAsync()
-    {
-        var token = _shutdownTokenSource.Token;
-        var pendingCommits = new List<StorageTransaction>();
-
-        while (await _transactions.WaitAsync(token))
-        {
-            var transactions = _transactions
-                .GetConsumingEnumerable();
-
-            var pages = _pool.Rented;
-
-            try
-            {
-                var page = _pool.Rent();
-
-                foreach (var transaction in transactions)
-                {
-                    if (!page.TryWrite(transaction.Data.Span))
-                    {
-                        // page is full, rent a new one
-                        page = _pool.Rent();
-
-                        if (!page.TryWrite(transaction.Data.Span))
-                            throw new InvalidOperationException("failed to write to data page.");
-                    }
-
-                    Console.WriteLine($"{transaction.Data.Length} bytes written to page {page.PageNumber}.");
-
-                    pendingCommits.Add(transaction);
-                }
-
-                Console.WriteLine($"flushed {pendingCommits.Count} transactions across {pages.Count} data page(s).");
-
-                Journal.WriteToDisk(pages);
-            }
-
-            finally
-            {
-                // ensure that all transactions are committed
-                // (even if an exception is thrown) to avoid deadlocks
-                foreach (var pendingCommit in pendingCommits)
-                    pendingCommit.Commit();
-
-                pendingCommits.Clear();
-
-                foreach (var page in pages)
-                {
-                    Console.WriteLine($"returning page {page.PageNumber}.");
-                    page.Reset();
-                    _pool.Return(page);
-                }
-            }
-        }
+        await transaction.CommitAsync().ConfigureAwait(false);
     }
 
     /// <summary>
@@ -170,9 +90,10 @@ public sealed class Database : IDisposable
             }
         }
 
-        await Task.Delay(5000);
+        await Task.Delay(1000);
 
-        _flushTransactionsToDataPagesTask = FlushTransactionsToJournalAsync();
+        _flushTransactionsToDataPagesTask = _storageEnvironment.ReceiveTransactionsAsync(
+            _shutdownTokenSource.Token);
     }
 
     private Task OnRunningAsync()

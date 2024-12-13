@@ -1,31 +1,31 @@
 using System.Diagnostics;
-using Microsoft.Win32.SafeHandles;
 
 namespace JotDB.Storage;
 
-public sealed class JournalPage : IDisposable
+public sealed class StorageBlock : IDisposable
 {
     private bool _disposed;
     private const nuint SIZE = 4096;
     private const nuint ALIGNMENT = 4096;
     private readonly AlignedMemory _memory;
 
-    public JournalPage(
+    public StorageBlock(
         ulong pageNumber,
-        ulong timestamp)
+        ulong timestamp,
+        AlignedMemory memory)
     {
         PageNumber = pageNumber;
         Timestamp = timestamp;
-        _memory = AlignedMemory.Allocate(SIZE, ALIGNMENT);
+        _memory = memory;
     }
 
     public ulong PageNumber { get; }
     public ulong Timestamp { get; }
     public int BytesWritten { get; private set; }
-    public bool IsFull => (uint) BytesWritten == SIZE;
-    public uint BytesAvailable => (uint) SIZE - (uint) BytesWritten;
+    public bool IsFull => (uint)BytesWritten == SIZE;
+    public uint BytesAvailable => (uint)SIZE - (uint)BytesWritten;
     public ReadOnlySpan<byte> Span => _memory.Span;
-    public int Size => (int) SIZE;
+    public int Size => (int)SIZE;
 
     public bool TryWrite(
         ReadOnlySpan<byte> buffer)
@@ -37,10 +37,10 @@ public sealed class JournalPage : IDisposable
 
         buffer.CopyTo(span[BytesWritten..]);
         BytesWritten += buffer.Length;
-        
+
         return true;
     }
-    
+
     public void ZeroUnusedBytes() =>
         _memory.Span[BytesWritten..].Clear();
 

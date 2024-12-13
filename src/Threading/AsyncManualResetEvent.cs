@@ -5,6 +5,7 @@ public sealed class AsyncManualResetEvent : IDisposable
     private readonly CancellationToken _token;
     private readonly CancellationTokenSource _cts;
     private readonly CancellationTokenRegistration _ctr;
+
     private readonly TaskCompletionSource _tcs =
         new(TaskCreationOptions.RunContinuationsAsynchronously);
 
@@ -15,7 +16,11 @@ public sealed class AsyncManualResetEvent : IDisposable
         _token = _cts.Token;
     }
 
-    public void Set()
+    public Task Task => _tcs.Task;
+
+    public bool IsSet => _tcs.Task.IsCompleted;
+
+    public void SetCompleted()
     {
         _tcs.TrySetResult();
     }
@@ -25,7 +30,6 @@ public sealed class AsyncManualResetEvent : IDisposable
         _tcs.TrySetException(exception);
     }
 
-    public bool IsSet => _tcs.Task.IsCompleted;
 
     public Task WaitAsync()
     {

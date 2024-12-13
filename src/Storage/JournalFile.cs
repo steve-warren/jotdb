@@ -66,7 +66,7 @@ public sealed class JournalFile : IDisposable
     public void FlushToDisk() => RandomAccess.FlushToDisk(_fileHandle);
 
     public void WriteToDisk(
-        HashSet<JournalPage> pages)
+        HashSet<StorageBlock> pages)
     {
         Console.WriteLine("writing to journal on disk.");
 

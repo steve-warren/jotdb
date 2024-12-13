@@ -3,6 +3,7 @@ using JotDB;
 
 using var database = new Database();
 var run = database.RunAsync();
+var cts = new CancellationTokenSource();
 
 Console.CancelKeyPress += (_, e) =>
 {
@@ -14,6 +15,7 @@ Console.CancelKeyPress += (_, e) =>
 // macOS: quit and force quit
 AppDomain.CurrentDomain.ProcessExit += (_, e) =>
 {
+    cts.Cancel();
     database.TryShutdown();
 
     run.Wait();
@@ -43,19 +45,14 @@ var data =
           },
         """u8.ToArray();
 
-for (var i = 0; i < 2; i++)
-{
-    var id = i;
-    Task.Run(async () =>
+for (var i = 0; i < 4; i++)
+    _ = Task.Run(async () =>
     {
-        while (true)
+        while (!cts.IsCancellationRequested)
         {
-            var watch = Stopwatch.StartNew();
             await database.InsertDocumentAsync(data);
-            Console.WriteLine($"{DateTime.Now} task {id}: command completed in {watch.ElapsedMilliseconds}ms");
-            await Task.Delay(Random.Shared.Next(4000, 4100));
+            //await Task.Delay(100);
         }
     });
-}
 
 run.Wait();

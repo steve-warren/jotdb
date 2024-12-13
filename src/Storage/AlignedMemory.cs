@@ -1,12 +1,12 @@
-using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
 namespace JotDB.Storage;
 
-public readonly unsafe struct AlignedMemory
+public sealed unsafe class AlignedMemory : IEquatable<AlignedMemory>
 {
     private readonly void* _pointer;
+    private bool _disposed;
 
     /// <summary>
     /// Allocates a new <see cref="AlignedMemory"/> with the specified size and alignment.
@@ -33,6 +33,11 @@ public readonly unsafe struct AlignedMemory
         Size = (int)size;
     }
 
+    ~AlignedMemory()
+    {
+        Dispose();
+    }
+
     public int Size { get; }
 
     public Span<byte> Span =>
@@ -40,6 +45,26 @@ public readonly unsafe struct AlignedMemory
 
     public void Dispose()
     {
+        if (_disposed) return;
+
+        _disposed = true;
         NativeMemory.AlignedFree(_pointer);
+    }
+
+    public bool Equals(AlignedMemory? other)
+    {
+        if (other is null) return false;
+        if (ReferenceEquals(this, other)) return true;
+        return _pointer == other._pointer;
+    }
+
+    public override bool Equals(object? obj)
+    {
+        return ReferenceEquals(this, obj) || obj is AlignedMemory other && Equals(other);
+    }
+
+    public override int GetHashCode()
+    {
+        return HashCode.Combine(unchecked((int)(long)_pointer));
     }
 }

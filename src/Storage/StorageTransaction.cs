@@ -1,53 +1,48 @@
-using System.Diagnostics;
-using System.Runtime.CompilerServices;
 using JotDB.Threading;
 
 namespace JotDB.Storage;
 
-public sealed class StorageTransaction : IDisposable
+public class StorageTransaction : IDisposable
 {
-    private readonly AsyncManualResetEvent _mre;
-    private readonly CancellationTokenSource _cts;
+    private readonly IEnumerable<Transaction> _transactions;
 
-    public StorageTransaction(int timeout)
+    public StorageTransaction(
+        ulong transactionNumber,
+        IEnumerable<Transaction> transactions)
     {
-        _cts = new CancellationTokenSource(timeout);
-        _mre = new AsyncManualResetEvent(_cts.Token);
+        TransactionNumber = transactionNumber;
+        _transactions = transactions;
     }
 
-    public ReadOnlyMemory<byte> Data { get; init; }
+    public ulong TransactionNumber { get; }
 
-    public TransactionType Type { get; init; }
-    public bool IsCommitted => _mre.IsSet;
-
-    /// <summary>
-    /// Marks the journal entry as written to disk and sets the task result.
-    /// </summary>
-    public void Commit()
+    public void Commit(CancellationToken cancellationToken = default)
     {
-        _mre.Set();
+        var transactionCount = 0;
+        using var mre = new AsyncManualResetEvent(cancellationToken);
+
+        try
+        {
+            foreach (var transaction in _transactions.Take(8))
+            {
+                transactionCount++;
+                _ = transaction.SignalCommitCompletionAfter(mre.Task);
+            }
+        }
+
+        finally
+        {
+            mre.SetCompleted();
+        }
+
+        Console.WriteLine($"strx {TransactionNumber} committed {transactionCount} trx.");
     }
 
-    public void Rollback(Exception exception)
+    public void Rollback()
     {
-        _mre.SetException(exception);
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void CopyTo(Span<byte> destination, int offset)
-    {
-        Data.Span.CopyTo(destination.Slice(offset, Data.Length));
-    }
-
-    public Task WaitAsync()
-    {
-        return _mre.WaitAsync();
     }
 
     public void Dispose()
     {
-        _cts.Cancel();
-        _mre.Dispose();
-        _cts.Dispose();
     }
 }
