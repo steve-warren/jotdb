@@ -5,13 +5,16 @@ namespace JotDB.Storage;
 public class StorageTransaction : IDisposable
 {
     private readonly IEnumerable<Transaction> _transactions;
+    private readonly JournalFile _journal;
 
     public StorageTransaction(
         ulong transactionNumber,
-        IEnumerable<Transaction> transactions)
+        IEnumerable<Transaction> transactions,
+        JournalFile journal)
     {
         TransactionNumber = transactionNumber;
         _transactions = transactions;
+        _journal = journal;
     }
 
     public ulong TransactionNumber { get; }
@@ -26,7 +29,7 @@ public class StorageTransaction : IDisposable
             foreach (var transaction in _transactions.Take(8))
             {
                 transactionCount++;
-                _ = transaction.SignalCommitCompletionAfter(mre.Task);
+                transaction.CompleteCommitAfter(mre.Task);
             }
         }
 

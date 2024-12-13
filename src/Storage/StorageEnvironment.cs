@@ -1,10 +1,23 @@
 namespace JotDB.Storage;
 
-public class StorageEnvironment
+public sealed class StorageEnvironment : IDisposable
 {
     private readonly TransactionStream _transactionStream = new();
     private ulong _storageTransactionSequence;
     private ulong _transactionSequence;
+
+    public StorageEnvironment()
+    {
+        File.Delete("journal.txt");
+        Journal = JournalFile.Open("journal.txt");
+    }
+
+    public JournalFile Journal { get; }
+
+    public void Dispose()
+    {
+        Journal.Dispose();
+    }
 
     public Transaction CreateTransaction(ReadOnlyMemory<byte> data)
     {
@@ -18,7 +31,7 @@ public class StorageEnvironment
         return transaction;
     }
 
-    public async Task ReceiveTransactionsAsync(CancellationToken cancellationToken)
+    public async Task WalWriteLoop(CancellationToken cancellationToken)
     {
         while (await _transactionStream.WaitForTransactionsAsync(
                    cancellationToken).ConfigureAwait(false))
@@ -27,10 +40,16 @@ public class StorageEnvironment
 
             var storageTransaction = new StorageTransaction(
                 transactionNumber: transactionNumber,
-                transactions: _transactionStream.ReadTransactions());
+                transactions: _transactionStream.ReadTransactions(),
+                Journal);
 
             cancellationToken.ThrowIfCancellationRequested();
             storageTransaction.Commit(cancellationToken);
         }
+    }
+
+    public void FlushToDisk()
+    {
+        Journal.FlushToDisk();
     }
 }

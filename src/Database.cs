@@ -11,13 +11,6 @@ public sealed class Database : IDisposable
     private readonly CancellationTokenSource _shutdownTokenSource = new();
     private Task _flushTransactionsToDataPagesTask = Task.CompletedTask;
 
-    public unsafe Database()
-    {
-        File.Delete("journal.txt");
-        Journal = JournalFile.Open("journal.txt");
-    }
-
-    public JournalFile Journal { get; }
     public DatabaseState State => _state;
 
     public void AddBackgroundWorker(
@@ -59,11 +52,7 @@ public sealed class Database : IDisposable
 
     public void Dispose()
     {
-        Journal.Dispose();
-    }
-
-    public void Checkpoint(ulong operationId)
-    {
+        _storageEnvironment.Dispose();
     }
 
     private async Task OnStartingAsync()
@@ -92,7 +81,7 @@ public sealed class Database : IDisposable
 
         await Task.Delay(1000);
 
-        _flushTransactionsToDataPagesTask = _storageEnvironment.ReceiveTransactionsAsync(
+        _flushTransactionsToDataPagesTask = _storageEnvironment.WalWriteLoop(
             _shutdownTokenSource.Token);
     }
 
@@ -135,8 +124,8 @@ public sealed class Database : IDisposable
         await _flushTransactionsToDataPagesTask.ConfigureAwait(ConfigureAwaitOptions.SuppressThrowing);
 
         Console.WriteLine("journal fsync");
-        Journal.FlushToDisk();
-        Journal.Dispose();
+        _storageEnvironment.FlushToDisk();
+        _storageEnvironment.Dispose();
     }
 
     private Task OnStoppedAsync()

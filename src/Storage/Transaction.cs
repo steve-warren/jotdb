@@ -9,7 +9,9 @@ public sealed class Transaction : IDisposable
     private readonly AsyncManualResetEvent _mre;
     private readonly CancellationTokenSource _cts;
 
-    public Transaction(int timeout, TransactionStream transactionStream)
+    public Transaction(
+        int timeout,
+        TransactionStream transactionStream)
     {
         _transactionStream = transactionStream;
         _cts = new CancellationTokenSource(timeout);
@@ -25,18 +27,19 @@ public sealed class Transaction : IDisposable
 
     public async Task CommitAsync()
     {
+        // place the transaction in the stream and wait for the commit to complete.
+        // we can do this in the journal impl
         await _transactionStream.WriteTransactionAsync(this).ConfigureAwait(false);
         await _mre.WaitAsync().ConfigureAwait(false);
     }
 
     /// <summary>
-    /// Signals the completion of the current transaction's commit process after the specified task is completed.
+    /// Completes the current transaction's commit process after the specified task is completed.
     /// </summary>
     /// <param name="waiter">The task to wait for before signaling the commit completion.</param>
-    /// <returns>A task that represents the asynchronous operation, which completes once the signal is set.</returns>
-    internal Task SignalCommitCompletionAfter(Task waiter)
+    internal void CompleteCommitAfter(Task waiter)
     {
-        return waiter.ContinueWith((_, o) =>
+        _ = waiter.ContinueWith((_, o) =>
         {
             var mre = (AsyncManualResetEvent)o!;
 
