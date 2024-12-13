@@ -2,7 +2,7 @@ using System.Threading.Channels;
 
 namespace JotDB.Storage;
 
-public sealed class TransactionStream : IDisposable
+public sealed class TransactionBuffer : IDisposable
 {
     private readonly Channel<Transaction> _channel = Channel.CreateBounded<Transaction>(
         new BoundedChannelOptions(Environment.ProcessorCount * 2)

@@ -29,7 +29,7 @@ public class StorageTransaction : IDisposable
             foreach (var transaction in _transactions.Take(8))
             {
                 transactionCount++;
-                transaction.CompleteCommitAfter(mre.Task);
+                transaction.CompleteCommitWhen(mre.Task);
             }
         }
 

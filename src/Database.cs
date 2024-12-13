@@ -81,6 +81,7 @@ public sealed class Database : IDisposable
 
         await Task.Delay(1000);
 
+        _storageEnvironment.CreateWriteAheadLog();
         _flushTransactionsToDataPagesTask = _storageEnvironment.WalWriteLoop(
             _shutdownTokenSource.Token);
     }

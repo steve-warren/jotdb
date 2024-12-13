@@ -2,26 +2,26 @@ namespace JotDB.Storage;
 
 public sealed class StorageEnvironment : IDisposable
 {
-    private readonly TransactionStream _transactionStream = new();
+    private readonly TransactionBuffer _transactionBuffer = new();
     private ulong _storageTransactionSequence;
     private ulong _transactionSequence;
 
-    public StorageEnvironment()
-    {
-        File.Delete("journal.txt");
-        Journal = JournalFile.Open("journal.txt");
-    }
-
-    public JournalFile Journal { get; }
+    public JournalFile Journal { get; private set; }
 
     public void Dispose()
     {
         Journal.Dispose();
     }
 
+    public void CreateWriteAheadLog()
+    {
+        File.Delete("journal.txt");
+        Journal = JournalFile.Open("journal.txt");
+    }
+
     public Transaction CreateTransaction(ReadOnlyMemory<byte> data)
     {
-        var transaction = new Transaction(15_000, _transactionStream)
+        var transaction = new Transaction(15_000, _transactionBuffer)
         {
             Type = TransactionType.Insert,
             Data = data,
@@ -33,14 +33,14 @@ public sealed class StorageEnvironment : IDisposable
 
     public async Task WalWriteLoop(CancellationToken cancellationToken)
     {
-        while (await _transactionStream.WaitForTransactionsAsync(
+        while (await _transactionBuffer.WaitForTransactionsAsync(
                    cancellationToken).ConfigureAwait(false))
         {
             var transactionNumber = Interlocked.Increment(ref _storageTransactionSequence);
 
             var storageTransaction = new StorageTransaction(
                 transactionNumber: transactionNumber,
-                transactions: _transactionStream.ReadTransactions(),
+                transactions: _transactionBuffer.ReadTransactions(),
                 Journal);
 
             cancellationToken.ThrowIfCancellationRequested();
