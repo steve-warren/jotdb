@@ -45,7 +45,7 @@ var data =
           },
         """u8.ToArray();
 
-for (var i = 0; i < Environment.ProcessorCount; i++)
+for (var i = 0; i < 4; i++)
     _ = Task.Run(async () =>
     {
         while (!cts.IsCancellationRequested)

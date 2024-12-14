@@ -52,7 +52,7 @@ public sealed class Database : IDisposable
 
     public void Dispose()
     {
-        _storageEnvironment.Dispose();
+        _storageEnvironment.WriteAheadLog.Dispose();
     }
 
     private async Task OnStartingAsync()
@@ -81,8 +81,7 @@ public sealed class Database : IDisposable
 
         await Task.Delay(1000);
 
-        _storageEnvironment.CreateWriteAheadLog();
-        _flushTransactionsToDataPagesTask = _storageEnvironment.FlushTransactionBufferAsync(
+        _flushTransactionsToDataPagesTask = _storageEnvironment.WriteAheadLog.FlushBufferAsync(
             _shutdownTokenSource.Token);
     }
 
@@ -126,7 +125,7 @@ public sealed class Database : IDisposable
 
         Console.WriteLine("journal fsync");
         _storageEnvironment.FlushToDisk();
-        _storageEnvironment.Dispose();
+        _storageEnvironment.WriteAheadLog.Dispose();
     }
 
     private Task OnStoppedAsync()

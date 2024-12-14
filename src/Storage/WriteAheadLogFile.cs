@@ -5,15 +5,15 @@ using Microsoft.Win32.SafeHandles;
 
 namespace JotDB.Storage;
 
-public sealed class JournalFile : IDisposable
+public sealed class WriteAheadLogFile : IDisposable
 {
     private readonly SafeFileHandle _fileHandle;
     private long _offset;
 
-    public static JournalFile Open(
+    public static WriteAheadLogFile Open(
         string path)
     {
-        return new JournalFile(
+        return new WriteAheadLogFile(
             path: path,
             offset: 0);
     }
@@ -47,7 +47,7 @@ public sealed class JournalFile : IDisposable
         return handle;
     }
 
-    private JournalFile(
+    private WriteAheadLogFile(
         string path,
         long offset)
     {

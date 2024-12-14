@@ -52,6 +52,15 @@ public sealed class AsyncAwaiter : IDisposable
         _tcs.TrySetResult();
     }
 
+    public void SignalCompletionAfter(Task after)
+    {
+        after.ContinueWith((_, o) =>
+        {
+            var tcs = (TaskCompletionSource)o;
+            tcs.TrySetResult();
+        }, _tcs, _token, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Current);
+    }
+
     public void SignalFault(Exception exception)
     {
         _tcs.TrySetException(exception);

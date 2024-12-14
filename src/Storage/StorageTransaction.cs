@@ -1,21 +1,29 @@
 using System.Diagnostics;
+using JotDB.Storage.Journal;
 using JotDB.Threading;
 
 namespace JotDB.Storage;
 
+/// <summary>
+/// Represents a transaction spanning multiple write-ahead log transactions in a storage context.
+/// </summary>
+/// <remarks>
+/// This class is responsible for managing the lifecycle of a transaction, including committing
+/// the associated write-ahead log transactions to storage and handling any necessary cleanup during disposal.
+/// </remarks>
 public class StorageTransaction : IDisposable
 {
-    private readonly IEnumerable<Transaction> _transactions;
-    private readonly JournalFile _journal;
+    private readonly IEnumerable<WriteAheadLogTransaction> _transactions;
+    private readonly WriteAheadLogFile _writeAheadLog;
 
     public StorageTransaction(
         ulong transactionNumber,
-        IEnumerable<Transaction> transactions,
-        JournalFile journal)
+        IEnumerable<WriteAheadLogTransaction> transactions,
+        WriteAheadLogFile writeAheadLog)
     {
         TransactionNumber = transactionNumber;
         _transactions = transactions;
-        _journal = journal;
+        _writeAheadLog = writeAheadLog;
     }
 
     public ulong TransactionNumber { get; }
@@ -36,23 +44,23 @@ public class StorageTransaction : IDisposable
             foreach (var transaction in _transactions.Take(1024))
             {
                 transactionCount++;
-                if (block.TryWrite(transaction.Data.Span))
-                    transaction.FinalizeCommit(commitAwaiter.Task);
-                else if (transaction.Data.Length > block.Size)
+                if (block.TryWrite(transaction.Transaction.Data.Span))
+                    transaction.CommitAfter(commitAwaiter.Task);
+                else if (transaction.Transaction.Data.Length > block.Size)
                     transaction.Abort(new Exception("Failed to write to storage block"));
                 else
                 {
                     block = new StorageBlock(0, 0, AlignedMemoryPool.Default.Rent());
                     blocks.AddLast(block);
 
-                    if (block.TryWrite(transaction.Data.Span))
-                        transaction.FinalizeCommit(commitAwaiter.Task);
+                    if (block.TryWrite(transaction.Transaction.Data.Span))
+                        transaction.CommitAfter(commitAwaiter.Task);
                     else
                         transaction.Abort(new Exception("Failed to write to storage block"));
                 }
             }
 
-            _journal.WriteToDisk(blocks);
+            _writeAheadLog.WriteToDisk(blocks);
         }
 
         finally
