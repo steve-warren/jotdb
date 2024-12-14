@@ -31,7 +31,7 @@ public sealed class StorageEnvironment : IDisposable
         return transaction;
     }
 
-    public async Task WalWriteLoop(CancellationToken cancellationToken)
+    public async Task FlushTransactionBufferAsync(CancellationToken cancellationToken)
     {
         while (await _transactionBuffer.WaitForTransactionsAsync(
                    cancellationToken).ConfigureAwait(false))

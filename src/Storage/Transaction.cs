@@ -1,4 +1,5 @@
 using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using JotDB.Threading;
 
 namespace JotDB.Storage;
@@ -6,7 +7,7 @@ namespace JotDB.Storage;
 public sealed class Transaction : IDisposable
 {
     private readonly TransactionBuffer _transactionBuffer;
-    private readonly AsyncManualResetEvent _mre;
+    private readonly AsyncAwaiter _commitAwaiter;
     private readonly CancellationTokenSource _cts;
 
     public Transaction(
@@ -15,41 +16,47 @@ public sealed class Transaction : IDisposable
     {
         _transactionBuffer = transactionBuffer;
         _cts = new CancellationTokenSource(timeout);
-        _mre = new AsyncManualResetEvent(_cts.Token);
+        _commitAwaiter = new AsyncAwaiter(_cts.Token);
     }
 
     public ulong Number { get; init; }
     public ulong CommitSequenceNumber { get; private set; }
     public ReadOnlyMemory<byte> Data { get; init; }
-
+    public TransactionHeader? Header { get; private set; }
     public TransactionType Type { get; init; }
-    public bool IsCommitted => _mre.IsSet;
+    public bool IsCommitted => _commitAwaiter.IsSet;
 
     public async Task CommitAsync()
     {
+        Header = new TransactionHeader
+        {
+            TransactionSequenceNumber = Number,
+            DataLength = Data.Length
+        };
+
         // place the transaction in the stream and wait for the commit to complete.
-        // we can do this in the journal impl
-        await _transactionBuffer.WriteTransactionAsync(this).ConfigureAwait(false);
-        await _mre.WaitAsync().ConfigureAwait(false);
+        await _transactionBuffer.WriteTransactionAsync(this)
+            .ConfigureAwait(false);
+        await _commitAwaiter.WaitForSignalAsync().ConfigureAwait(false);
     }
 
     /// <summary>
     /// Completes the current transaction's commit process after the specified task is completed.
     /// </summary>
     /// <param name="waiter">The task to wait for before signaling the commit completion.</param>
-    internal void CompleteCommitWhen(Task waiter)
+    internal void FinalizeCommit(Task waiter)
     {
         _ = waiter.ContinueWith((_, o) =>
         {
-            var mre = (AsyncManualResetEvent)o!;
+            var mre = (AsyncAwaiter)o!;
 
-            mre.SetCompleted();
-        }, _mre, TaskContinuationOptions.ExecuteSynchronously);
+            mre.SignalCompletion();
+        }, _commitAwaiter, TaskContinuationOptions.ExecuteSynchronously);
     }
 
-    public void Rollback(Exception exception)
+    public void Abort(Exception exception)
     {
-        _mre.SetException(exception);
+        _commitAwaiter.SignalFault(exception);
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -61,7 +68,7 @@ public sealed class Transaction : IDisposable
     public void Dispose()
     {
         _cts.Cancel();
-        _mre.Dispose();
+        _commitAwaiter.Dispose();
         _cts.Dispose();
     }
 }

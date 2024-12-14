@@ -1,6 +1,6 @@
 namespace JotDB.Threading;
 
-public sealed class AsyncManualResetEvent : IDisposable
+public sealed class AsyncAwaiter : IDisposable
 {
     private readonly CancellationToken _token;
     private readonly CancellationTokenSource _cts;
@@ -9,7 +9,7 @@ public sealed class AsyncManualResetEvent : IDisposable
     private readonly TaskCompletionSource _tcs =
         new(TaskCreationOptions.RunContinuationsAsynchronously);
 
-    public AsyncManualResetEvent(CancellationToken cancellationToken = default)
+    public AsyncAwaiter(CancellationToken cancellationToken = default)
     {
         _ctr = cancellationToken.Register(() => _tcs.TrySetCanceled());
         _cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -20,18 +20,17 @@ public sealed class AsyncManualResetEvent : IDisposable
 
     public bool IsSet => _tcs.Task.IsCompleted;
 
-    public void SetCompleted()
+    public void SignalCompletion()
     {
         _tcs.TrySetResult();
     }
 
-    public void SetException(Exception exception)
+    public void SignalFault(Exception exception)
     {
         _tcs.TrySetException(exception);
     }
 
-
-    public Task WaitAsync()
+    public Task WaitForSignalAsync()
     {
         _token.ThrowIfCancellationRequested();
         return _tcs.Task;

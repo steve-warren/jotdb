@@ -6,6 +6,7 @@ namespace JotDB.Storage;
 public struct TransactionHeader
 {
     public ulong TransactionSequenceNumber;
+    public int DataLength;
     public ulong PageNumber;
     public long Timestamp;
     [MarshalAs(UnmanagedType.ByValArray, SizeConst = 16)]

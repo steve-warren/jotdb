@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using JotDB.Threading;
 
 namespace JotDB.Storage;
@@ -21,24 +22,34 @@ public class StorageTransaction : IDisposable
 
     public void Commit(CancellationToken cancellationToken = default)
     {
+        using var commitAwaiter = new AsyncAwaiter(cancellationToken);
         var transactionCount = 0;
-        using var mre = new AsyncManualResetEvent(cancellationToken);
+        var watch = Stopwatch.StartNew();
 
         try
         {
             foreach (var transaction in _transactions.Take(8))
             {
                 transactionCount++;
-                transaction.CompleteCommitWhen(mre.Task);
+
+                try
+                {
+                    transaction.FinalizeCommit(commitAwaiter.Task);
+                }
+
+                catch (Exception ex)
+                {
+                    transaction.Abort(ex);
+                }
             }
         }
 
         finally
         {
-            mre.SetCompleted();
+            commitAwaiter.SignalCompletion();
         }
 
-        Console.WriteLine($"strx {TransactionNumber} committed {transactionCount} trx.");
+        Console.WriteLine($"strx {TransactionNumber} committed {transactionCount} trx in {watch.ElapsedTicks} ticks");
     }
 
     public void Rollback()
