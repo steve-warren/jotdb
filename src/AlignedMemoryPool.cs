@@ -20,15 +20,15 @@ public sealed class AlignedMemoryPool : IDisposable
     public int Capacity { get; }
     public HashSet<AlignedMemory> Rented { get; } = [];
 
-    public Releaser Rent(out AlignedMemory memory)
+    public AlignedMemory Rent()
     {
-        memory = _pool.Count == 0
+        var memory = _pool.Count == 0
             ? AlignedMemory.Allocate(4096, 4096)
             : _pool.Pop();
 
         Rented.Add(memory);
 
-        return new Releaser(this, memory);
+        return memory;
     }
 
     public void Return(AlignedMemory memory)
@@ -50,24 +50,5 @@ public sealed class AlignedMemoryPool : IDisposable
         _pool.Clear();
 
         GC.SuppressFinalize(this);
-    }
-
-    public readonly ref struct Releaser
-    {
-        private readonly AlignedMemoryPool _pool;
-        private readonly AlignedMemory _memory;
-
-        public Releaser(
-            AlignedMemoryPool pool,
-            AlignedMemory memory)
-        {
-            _pool = pool;
-            _memory = memory;
-        }
-
-        public void Dispose()
-        {
-            _pool.Return(_memory);
-        }
     }
 }

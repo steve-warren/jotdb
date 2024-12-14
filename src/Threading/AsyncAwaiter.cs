@@ -1,5 +1,27 @@
 namespace JotDB.Threading;
 
+/// <summary>
+/// Represents an asynchronous awaitable utility for signaling completion, fault, or cancellation
+/// in an asynchronous operation. The class ties completion handling with cancellation tokens
+/// to provide a mechanism for synchronization and handling task state transitions.
+/// </summary>
+/// <remarks>
+/// This class is designed to provide controlled task signaling between various components
+/// in asynchronous workflows. It is particularly useful in scenarios where tasks need
+/// to await completion, handle exceptions or be aware of cancellation requests.
+/// The class ensures thread safety and proper resource cleanup.
+/// </remarks>
+/// <threadsafety>
+/// This class is thread-safe and multiple threads can safely interact with its public members.
+/// </threadsafety>
+/// <example>
+/// This class can be utilized as a lightweight awaitable object for synchronization or task transition
+/// in high-performance applications requiring direct control of asynchronous behavior.
+/// </example>
+/// <note>
+/// Always ensure the object is disposed properly to release allocated resources and unregister from
+/// any cancellation token sources.
+/// </note>
 public sealed class AsyncAwaiter : IDisposable
 {
     private readonly CancellationToken _token;
@@ -14,6 +36,11 @@ public sealed class AsyncAwaiter : IDisposable
         _ctr = cancellationToken.Register(() => _tcs.TrySetCanceled());
         _cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         _token = _cts.Token;
+    }
+
+    ~AsyncAwaiter()
+    {
+        Dispose();
     }
 
     public Task Task => _tcs.Task;
@@ -41,5 +68,6 @@ public sealed class AsyncAwaiter : IDisposable
         _cts.Cancel();
         _ctr.Dispose();
         _cts.Dispose();
+        GC.SuppressFinalize(this);
     }
 }

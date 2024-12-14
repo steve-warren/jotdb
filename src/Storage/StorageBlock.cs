@@ -24,9 +24,8 @@ public sealed class StorageBlock : IDisposable
     public int BytesWritten { get; private set; }
     public bool IsFull => (uint)BytesWritten == SIZE;
     public uint BytesAvailable => (uint)SIZE - (uint)BytesWritten;
-    public ReadOnlySpan<byte> Span => _memory.Span;
     public int Size => (int)SIZE;
-
+    public AlignedMemory Memory => _memory;
     public bool TryWrite(
         ReadOnlySpan<byte> buffer)
     {

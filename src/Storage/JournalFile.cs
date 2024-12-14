@@ -66,15 +66,15 @@ public sealed class JournalFile : IDisposable
     public void FlushToDisk() => RandomAccess.FlushToDisk(_fileHandle);
 
     public void WriteToDisk(
-        HashSet<StorageBlock> pages)
+        LinkedList<StorageBlock> blocks)
     {
         Console.WriteLine("writing to journal on disk.");
 
-        foreach (var page in pages)
+        foreach (var block in blocks)
         {
-            page.ZeroUnusedBytes();
-            RandomAccess.Write(_fileHandle, page.Span, _offset);
-            _offset += page.Size;
+            block.ZeroUnusedBytes();
+            RandomAccess.Write(_fileHandle, block.Memory.Span, _offset);
+            _offset += block.Size;
         }
     }
 }
