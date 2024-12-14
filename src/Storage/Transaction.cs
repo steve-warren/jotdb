@@ -23,10 +23,8 @@ public sealed class Transaction : IDisposable
         _cts = new CancellationTokenSource(timeout);
     }
 
-    public ulong Number { get; init; }
-    public ulong CommitSequenceNumber { get; private set; }
+    public ulong TransactionSequenceNumber { get; init; }
     public ReadOnlyMemory<byte> Data { get; init; }
-    public TransactionHeader? Header { get; private set; }
     public TransactionType Type { get; init; }
 
     public Task CommitAsync()

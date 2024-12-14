@@ -14,16 +14,16 @@ namespace JotDB.Storage;
 public class StorageTransaction : IDisposable
 {
     private readonly IEnumerable<WriteAheadLogTransaction> _transactions;
-    private readonly WriteAheadLogFile _writeAheadLog;
+    private readonly WriteAheadLogFile _writeAheadLogFile;
 
     public StorageTransaction(
         ulong transactionNumber,
         IEnumerable<WriteAheadLogTransaction> transactions,
-        WriteAheadLogFile writeAheadLog)
+        WriteAheadLogFile writeAheadLogFile)
     {
         TransactionNumber = transactionNumber;
         _transactions = transactions;
-        _writeAheadLog = writeAheadLog;
+        _writeAheadLogFile = writeAheadLogFile;
     }
 
     public ulong TransactionNumber { get; }
@@ -31,36 +31,41 @@ public class StorageTransaction : IDisposable
     public void Commit(CancellationToken cancellationToken = default)
     {
         using var commitAwaiter = new AsyncAwaiter(cancellationToken);
-        var transactionCount = 0;
+        var commitSequenceNumber = 0UL;
         var watch = Stopwatch.StartNew();
 
         var blocks = new LinkedList<StorageBlock>();
-        var block = new StorageBlock(0, 0, AlignedMemoryPool.Default.Rent());
+        var currentBlock = new StorageBlock(0, 0, AlignedMemoryPool.Default.Rent());
 
-        blocks.AddFirst(block);
+        blocks.AddFirst(currentBlock);
 
         try
         {
             foreach (var transaction in _transactions.Take(1024))
             {
-                transactionCount++;
-                if (block.TryWrite(transaction.Transaction.Data.Span))
-                    transaction.CommitAfter(commitAwaiter.Task);
-                else if (transaction.Transaction.Data.Length > block.Size)
+                commitSequenceNumber++;
+
+                transaction.Prepare(commitSequenceNumber, timestamp: DateTime.UtcNow.Ticks);
+
+                if (currentBlock.TryWrite(transaction.Transaction.Data.Span))
+                    transaction.Commit(after: commitAwaiter.Task);
+
+                else if (transaction.Transaction.Data.Length > currentBlock.Size)
                     transaction.Abort(new Exception("Failed to write to storage block"));
+
                 else
                 {
-                    block = new StorageBlock(0, 0, AlignedMemoryPool.Default.Rent());
-                    blocks.AddLast(block);
+                    currentBlock = new StorageBlock(0, 0, AlignedMemoryPool.Default.Rent());
+                    blocks.AddLast(currentBlock);
 
-                    if (block.TryWrite(transaction.Transaction.Data.Span))
-                        transaction.CommitAfter(commitAwaiter.Task);
+                    if (currentBlock.TryWrite(transaction.Transaction.Data.Span))
+                        transaction.Commit(after: commitAwaiter.Task);
                     else
                         transaction.Abort(new Exception("Failed to write to storage block"));
                 }
             }
 
-            _writeAheadLog.WriteToDisk(blocks);
+            _writeAheadLogFile.WriteToDisk(blocks);
         }
 
         finally
@@ -71,7 +76,8 @@ public class StorageTransaction : IDisposable
                 AlignedMemoryPool.Default.Return(usedBlock.Memory);
         }
 
-        Console.WriteLine($"strx {TransactionNumber} committed {transactionCount} trx in {watch.ElapsedTicks} ticks");
+        Console.WriteLine(
+            $"strx {TransactionNumber} committed {commitSequenceNumber} trx in {watch.ElapsedTicks} ticks");
     }
 
     public void Dispose()

@@ -23,8 +23,7 @@ public sealed class Database : IDisposable
 
     public async Task InsertDocumentAsync(ReadOnlyMemory<byte> document)
     {
-        using var transaction = _storageEnvironment.CreateTransaction(document);
-
+        using var transaction = _storageEnvironment.CreateTransaction(document, TransactionType.Insert);
         await transaction.CommitAsync().ConfigureAwait(false);
     }
 
