@@ -43,11 +43,9 @@ public class StorageTransaction : IDisposable
         {
             foreach (var transaction in _transactions.Take(1024))
             {
-                commitSequenceNumber++;
+                transaction.Prepare(++commitSequenceNumber, timestamp: DateTime.UtcNow.Ticks);
 
-                transaction.Prepare(commitSequenceNumber, timestamp: DateTime.UtcNow.Ticks);
-
-                if (currentBlock.TryWrite(transaction.Transaction.Data.Span))
+                if (transaction.TryCopyTo(currentBlock))
                     transaction.Commit(after: commitAwaiter.Task);
 
                 else if (transaction.Transaction.Data.Length > currentBlock.Size)
@@ -58,7 +56,7 @@ public class StorageTransaction : IDisposable
                     currentBlock = new StorageBlock(0, 0, AlignedMemoryPool.Default.Rent());
                     blocks.AddLast(currentBlock);
 
-                    if (currentBlock.TryWrite(transaction.Transaction.Data.Span))
+                    if (transaction.TryCopyTo(currentBlock))
                         transaction.Commit(after: commitAwaiter.Task);
                     else
                         transaction.Abort(new Exception("Failed to write to storage block"));

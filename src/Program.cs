@@ -45,13 +45,14 @@ var data =
           },
         """u8.ToArray();
 
-for (var i = 0; i < 4; i++)
+for (var i = 0; i < 1; i++)
     _ = Task.Run(async () =>
     {
         while (!cts.IsCancellationRequested)
         {
             await database.InsertDocumentAsync(data);
             //await Task.Delay(100);
+            break;
         }
     });
 

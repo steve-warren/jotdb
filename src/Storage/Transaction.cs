@@ -33,9 +33,9 @@ public sealed class Transaction : IDisposable
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void CopyTo(Span<byte> destination, int offset)
+    public bool CopyTo(Span<byte> destination)
     {
-        Data.Span.CopyTo(destination.Slice(offset, Data.Length));
+        return Data.Span.TryCopyTo(destination);
     }
 
     public void Dispose()

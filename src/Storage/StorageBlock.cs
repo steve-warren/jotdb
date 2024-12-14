@@ -1,4 +1,6 @@
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
+using JotDB.Storage.Journal;
 
 namespace JotDB.Storage;
 
@@ -24,6 +26,15 @@ public sealed class StorageBlock
     public int Size => (int)SIZE;
     public AlignedMemory Memory { get; }
 
+    public unsafe bool TryWrite(void* data, uint size)
+    {
+        Unsafe.CopyBlock(destination: Memory.Pointer, source: data, byteCount: size);
+
+        BytesWritten += (int) size;
+
+        return true;
+    }
+    
     public bool TryWrite(
         ReadOnlySpan<byte> buffer)
     {

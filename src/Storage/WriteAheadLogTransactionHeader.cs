@@ -1,17 +1,21 @@
 using System.Runtime.InteropServices;
-using System.Security.Cryptography;
 
 namespace JotDB.Storage;
 
-[StructLayout(LayoutKind.Sequential, Pack = 1)]
+[StructLayout(LayoutKind.Explicit, Pack = 1)]
 public struct WriteAheadLogTransactionHeader
 {
+    [FieldOffset(0)]
     public ulong TransactionSequenceNumber;
+    [FieldOffset(8)]
     public ulong CommitSequenceNumber;
-    public byte TransactionType;
+    [FieldOffset(16)]
+    public int TransactionType;
+    [FieldOffset(20)]
     public int DataLength;
-    public ulong PageNumber;
+    [FieldOffset(24)]
     public long Timestamp;
-    [MarshalAs(UnmanagedType.ByValArray, SizeConst = MD5.HashSizeInBytes)]
+    [FieldOffset(32)]
+    [MarshalAs(UnmanagedType.ByValArray, SizeConst = 16)]
     public byte[] Hash;
 }

@@ -39,6 +39,7 @@ public sealed unsafe class AlignedMemory : IEquatable<AlignedMemory>
     }
 
     public int Size { get; }
+    public void* Pointer => _pointer;
 
     public Span<byte> Span =>
         new(_pointer, Size);

@@ -1,4 +1,5 @@
-﻿using System.Security.Cryptography;
+﻿using System.Runtime.CompilerServices;
+using System.Security.Cryptography;
 using JotDB.Threading;
 
 namespace JotDB.Storage.Journal;
@@ -13,7 +14,9 @@ namespace JotDB.Storage.Journal;
 /// </remarks>
 public sealed class WriteAheadLogTransaction
 {
+    private static readonly uint HEADER_SIZE = (uint) Unsafe.SizeOf<WriteAheadLogTransactionHeader>();
     private readonly AsyncAwaiter _awaiter = new();
+    private WriteAheadLogTransactionHeader _header;
 
     /// <summary>
     /// Represents a wrapper around a transaction, designed to work with a write-ahead log (WAL) mechanism.
@@ -26,10 +29,12 @@ public sealed class WriteAheadLogTransaction
     public WriteAheadLogTransaction(Transaction transaction)
     {
         Transaction = transaction;
+        Size = HEADER_SIZE + (uint) transaction.Data.Length;
     }
 
+    public uint Size { get; }
     public Transaction Transaction { get; }
-    public WriteAheadLogTransactionHeader Header { get; private set; }
+    public ref WriteAheadLogTransactionHeader Header => ref _header;
     public ulong CommitSequenceNumber { get; private set; }
     
     public Task WaitForCommitAsync()
@@ -42,7 +47,7 @@ public sealed class WriteAheadLogTransaction
         long timestamp)
     {
         CommitSequenceNumber = commitSequenceNumber;
-        Header = new WriteAheadLogTransactionHeader
+        _header = new WriteAheadLogTransactionHeader
         {
             DataLength = Transaction.Data.Length,
             TransactionSequenceNumber = Transaction.TransactionSequenceNumber,
@@ -53,9 +58,14 @@ public sealed class WriteAheadLogTransaction
         };
     }
 
-    public void CopyTo(Span<byte> destination, int offset)
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public unsafe bool TryCopyTo(StorageBlock block)
     {
-        throw new NotImplementedException();
+        fixed (WriteAheadLogTransactionHeader* header = &_header)
+            block.TryWrite(header, HEADER_SIZE);
+
+        block.TryWrite(Transaction.Data.Span);
+        return true;
     }
     
     public void Abort(Exception ex)
