@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using JotDB.Storage;
 
 namespace JotDB;
@@ -27,6 +28,9 @@ public sealed class Database : IDisposable
             _storageEnvironment.CreateTransaction(document,
                 TransactionType.Insert);
         await transaction.CommitAsync().ConfigureAwait(false);
+
+        Debug.WriteLine($"trx completed in {transaction.ExecutionTime
+            .TotalMilliseconds} ms");
     }
 
     /// <summary>

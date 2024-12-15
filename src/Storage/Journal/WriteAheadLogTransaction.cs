@@ -54,7 +54,7 @@ public sealed class WriteAheadLogTransaction
             DataLength = Transaction.Data.Length,
             TransactionSequenceNumber = Transaction.TransactionSequenceNumber,
             CommitSequenceNumber = commitSequenceNumber,
-            TransactionType = (byte)Transaction.Type,
+            TransactionType = (int) Transaction.Type,
             Hash = MD5.HashData(Transaction.Data.Span),
             Timestamp = timestamp
         };

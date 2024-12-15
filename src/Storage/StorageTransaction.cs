@@ -59,7 +59,8 @@ public class StorageTransaction : IDisposable
             if (block.BytesWritten <= 0)
                 return;
 
-            _writeAheadLogFile.WriteToDisk(block);
+            //_writeAheadLogFile.WriteToDisk(block);
+            await Task.Delay(TimeSpan.FromMilliseconds(0.01));
 
             Console.WriteLine(
                 $"strx {TransactionNumber} committed {block.BytesWritten} bytes from {commitSequenceNumber} trx in {watch.Elapsed.TotalMilliseconds} ms");

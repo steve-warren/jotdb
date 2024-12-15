@@ -1,6 +1,4 @@
-using System.Diagnostics;
 using System.Runtime.CompilerServices;
-using JotDB.Storage.Journal;
 
 namespace JotDB.Storage;
 

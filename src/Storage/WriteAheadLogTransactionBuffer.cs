@@ -25,21 +25,24 @@ namespace JotDB.Storage;
 /// <seealso cref="WriteAheadLog" />
 public sealed class WriteAheadLogTransactionBuffer : IDisposable
 {
-    private readonly Channel<WriteAheadLogTransaction> _channel = Channel.CreateBounded<WriteAheadLogTransaction>(
-        new BoundedChannelOptions(Environment.ProcessorCount * 2)
-        {
-            SingleReader = true,
-            SingleWriter = false,
-            FullMode = BoundedChannelFullMode.Wait
-        });
+    private readonly Channel<WriteAheadLogTransaction> _channel =
+        Channel.CreateBounded<WriteAheadLogTransaction>(
+            new BoundedChannelOptions(Environment.ProcessorCount * 2)
+            {
+                SingleReader = true,
+                SingleWriter = false,
+                FullMode = BoundedChannelFullMode.Wait
+            });
 
-    public ValueTask<bool> WaitForTransactionsAsync(CancellationToken cancellationToken = default) =>
+    public ValueTask<bool> WaitForTransactionsAsync(
+        CancellationToken cancellationToken = default) =>
         _channel.Reader.WaitToReadAsync(cancellationToken);
 
-    public async IAsyncEnumerable<WriteAheadLogTransaction> ReadTransactionsAsync(
-        int bytes,
-        TimeSpan timeout,
-        [EnumeratorCancellation] CancellationToken cancellationToken)
+    public async IAsyncEnumerable<WriteAheadLogTransaction>
+        ReadTransactionsAsync(
+            int bytes,
+            TimeSpan timeout,
+            [EnumeratorCancellation] CancellationToken cancellationToken)
     {
         uint totalBytes = 0;
         var timeoutTask = Task.Delay(timeout, cancellationToken);
@@ -48,18 +51,13 @@ public sealed class WriteAheadLogTransactionBuffer : IDisposable
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            var readTask = _channel.Reader.WaitToReadAsync(cancellationToken).AsTask();
-            var completedTask = await Task.WhenAny(timeoutTask, readTask).ConfigureAwait(false);
-
-            if (completedTask == timeoutTask)
-                yield break;
-
             while (_channel.Reader.TryPeek(out var transaction))
             {
                 if (timeoutTask.IsCompleted)
                     yield break;
 
-                Debug.Assert(transaction.Size <= bytes, "Transaction size exceeds buffer size.");
+                Debug.Assert(transaction.Size <= bytes,
+                    "Transaction size exceeds buffer size.");
 
                 if (totalBytes + transaction.Size > bytes)
                     yield break;
@@ -68,17 +66,27 @@ public sealed class WriteAheadLogTransactionBuffer : IDisposable
                 _channel.Reader.TryRead(out _);
                 totalBytes += transaction.Size;
             }
+
+            var readTask = _channel.Reader.WaitToReadAsync(cancellationToken)
+                .AsTask();
+            var completedTask = await Task.WhenAny(timeoutTask, readTask)
+                .ConfigureAwait(false);
+
+            if (completedTask == timeoutTask)
+                yield break;
         }
     }
 
     public Task WriteTransactionAsync(WriteAheadLogTransaction transaction)
     {
-        return _channel.Writer.WriteAsync(transaction).AsTask().ContinueWith((_, trx) =>
-        {
-            var pendingTransaction = (WriteAheadLogTransaction)trx;
+        return _channel.Writer.WriteAsync(transaction).AsTask().ContinueWith(
+                (_, trx) =>
+                {
+                    var pendingTransaction = (WriteAheadLogTransaction)trx!;
 
-            return pendingTransaction.WaitForCommitAsync();
-        }, transaction, TaskContinuationOptions.ExecuteSynchronously).Unwrap();
+                    return pendingTransaction.WaitForCommitAsync();
+                }, transaction, TaskContinuationOptions.ExecuteSynchronously)
+            .Unwrap();
     }
 
     public void Dispose() =>

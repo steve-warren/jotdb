@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using JotDB.Storage.Journal;
 
@@ -26,16 +27,12 @@ public sealed class Transaction : IDisposable
     public ulong TransactionSequenceNumber { get; init; }
     public ReadOnlyMemory<byte> Data { get; init; }
     public TransactionType Type { get; init; }
-
-    public Task CommitAsync()
+    public TimeSpan ExecutionTime { get; private set; }
+    public async Task CommitAsync()
     {
-        return _wal.AppendAsync(this);
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public bool CopyTo(Span<byte> destination)
-    {
-        return Data.Span.TryCopyTo(destination);
+        var watch = Stopwatch.StartNew();
+        await _wal.AppendAsync(this).ConfigureAwait(false);
+        ExecutionTime = watch.Elapsed;
     }
 
     public void Dispose()

@@ -21,6 +21,11 @@ public sealed class StorageEnvironment
 
         return transaction;
     }
+
+    public void Shutdown()
+    {
+        throw new NotImplementedException();
+    }
     
     public void FlushToDisk()
     {
