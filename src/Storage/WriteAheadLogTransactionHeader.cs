@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
 namespace JotDB.Storage;
@@ -5,6 +6,9 @@ namespace JotDB.Storage;
 [StructLayout(LayoutKind.Explicit, Pack = 1)]
 public struct WriteAheadLogTransactionHeader
 {
+    public static readonly int Size = Unsafe
+        .SizeOf<WriteAheadLogTransactionHeader>();
+
     [FieldOffset(0)]
     public ulong TransactionSequenceNumber;
     [FieldOffset(8)]

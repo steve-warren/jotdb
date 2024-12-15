@@ -23,7 +23,9 @@ public sealed class Database : IDisposable
 
     public async Task InsertDocumentAsync(ReadOnlyMemory<byte> document)
     {
-        using var transaction = _storageEnvironment.CreateTransaction(document, TransactionType.Insert);
+        using var transaction =
+            _storageEnvironment.CreateTransaction(document,
+                TransactionType.Insert);
         await transaction.CommitAsync().ConfigureAwait(false);
     }
 
@@ -59,14 +61,29 @@ public sealed class Database : IDisposable
         _state = DatabaseState.Starting;
 
         Console.WriteLine("starting JotDB");
-        Console.WriteLine($"{Environment.OSVersion.VersionString} ({Environment.OSVersion.Platform})");
+        Console.WriteLine(
+            $"{Environment.OSVersion.VersionString} ({Environment.OSVersion.Platform})");
         Console.WriteLine($"{Environment.ProcessorCount} cores");
+
+        ThreadPool.GetAvailableThreads(out int availableWorkerThreads,
+            out int availableIoThreads);
+        ThreadPool.GetMaxThreads(out int maxWorkerThreads,
+            out int maxIoThreads);
+        ThreadPool.GetMinThreads(out int minWorkerThreads,
+            out int minIoThreads);
+
+        Console.WriteLine($"Thread Pool Status:");
+        Console.WriteLine(
+            $"  Worker Threads: {availableWorkerThreads}/{maxWorkerThreads} (Min: {minWorkerThreads})");
+        Console.WriteLine(
+            $"  IO Threads: {availableIoThreads}/{maxIoThreads} (Min: {minIoThreads})");
 
         foreach (var worker in _backgroundWorkers)
         {
             try
             {
-                Console.WriteLine($"starting background worker '{worker.Name}'");
+                Console.WriteLine(
+                    $"starting background worker '{worker.Name}'");
                 worker.Start();
                 Console.WriteLine($"started background worker '{worker.Name}'");
             }
@@ -80,8 +97,9 @@ public sealed class Database : IDisposable
 
         await Task.Delay(1000);
 
-        _flushTransactionsToDataPagesTask = _storageEnvironment.WriteAheadLog.FlushBufferAsync(
-            _shutdownTokenSource.Token);
+        _flushTransactionsToDataPagesTask =
+            _storageEnvironment.WriteAheadLog.FlushBufferAsync(
+                _shutdownTokenSource.Token);
     }
 
     private Task OnRunningAsync()
@@ -103,14 +121,16 @@ public sealed class Database : IDisposable
         {
             try
             {
-                Console.WriteLine($"stopping background worker '{worker.Name}'");
+                Console.WriteLine(
+                    $"stopping background worker '{worker.Name}'");
                 await worker.StopAsync();
                 Console.WriteLine($"stopped background worker '{worker.Name}'");
             }
 
             catch (OperationCanceledException)
             {
-                Console.WriteLine($"stopped background worker '{worker.Name}' through cancellation.");
+                Console.WriteLine(
+                    $"stopped background worker '{worker.Name}' through cancellation.");
             }
 
             catch (Exception ex)
@@ -120,7 +140,8 @@ public sealed class Database : IDisposable
             }
         }
 
-        await _flushTransactionsToDataPagesTask.ConfigureAwait(ConfigureAwaitOptions.SuppressThrowing);
+        await _flushTransactionsToDataPagesTask.ConfigureAwait(
+            ConfigureAwaitOptions.SuppressThrowing);
 
         Console.WriteLine("journal fsync");
         _storageEnvironment.FlushToDisk();
@@ -129,7 +150,8 @@ public sealed class Database : IDisposable
 
     private Task OnStoppedAsync()
     {
-        Console.WriteLine("database gracefully shut down.\nit is now safe to turn off your computer.");
+        Console.WriteLine(
+            "database gracefully shut down.\nit is now safe to turn off your computer.");
         _state = DatabaseState.Stopped;
         return Task.CompletedTask;
     }

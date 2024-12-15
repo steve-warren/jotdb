@@ -48,8 +48,8 @@ public class StorageTransaction : IDisposable
                 if (transaction.TryCopyTo(currentBlock))
                     transaction.Commit(after: commitAwaiter.Task);
 
-                else if (transaction.Transaction.Data.Length > currentBlock.Size)
-                    transaction.Abort(new Exception("Failed to write to storage block"));
+                else if (transaction.Size > currentBlock.Size)
+                    transaction.Abort(new Exception("Data would be truncated."));
 
                 else
                 {

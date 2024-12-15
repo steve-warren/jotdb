@@ -45,15 +45,19 @@ var data =
           },
         """u8.ToArray();
 
-for (var i = 0; i < 1; i++)
-    _ = Task.Run(async () =>
-    {
-        while (!cts.IsCancellationRequested)
-        {
-            await database.InsertDocumentAsync(data);
-            //await Task.Delay(100);
-            break;
-        }
-    });
+    var tasks = Enumerable.Range(0, Environment.ProcessorCount)
+        .Select(_ => SimulateClientAsync(10));
+
+    await Task.WhenAll(tasks);
 
 run.Wait();
+return;
+
+async Task SimulateClientAsync(int recordsToInsert)
+{
+    for (var i = 0; i < recordsToInsert; i++)
+    {
+        await database.InsertDocumentAsync(data);
+    }
+}
+

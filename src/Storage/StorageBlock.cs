@@ -26,27 +26,19 @@ public sealed class StorageBlock
     public int Size => (int)SIZE;
     public AlignedMemory Memory { get; }
 
-    public unsafe bool TryWrite(void* data, uint size)
+    public unsafe void Write(ref WriteAheadLogTransactionHeader header)
     {
-        Unsafe.CopyBlock(destination: Memory.Pointer, source: data, byteCount: size);
-
-        BytesWritten += (int) size;
-
-        return true;
+        Unsafe.Write(Memory.Pointer, header);
+        BytesWritten += WriteAheadLogTransactionHeader.Size;
     }
-    
-    public bool TryWrite(
+
+    public void Write(
         ReadOnlySpan<byte> buffer)
     {
-        if (BytesAvailable < buffer.Length)
-            return false;
-
         var span = Memory.Span;
 
         buffer.CopyTo(span[BytesWritten..]);
         BytesWritten += buffer.Length;
-
-        return true;
     }
 
     public void ZeroUnusedBytes() =>

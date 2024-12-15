@@ -14,7 +14,6 @@ namespace JotDB.Storage.Journal;
 /// </remarks>
 public sealed class WriteAheadLogTransaction
 {
-    private static readonly uint HEADER_SIZE = (uint) Unsafe.SizeOf<WriteAheadLogTransactionHeader>();
     private readonly AsyncAwaiter _awaiter = new();
     private WriteAheadLogTransactionHeader _header;
 
@@ -29,14 +28,17 @@ public sealed class WriteAheadLogTransaction
     public WriteAheadLogTransaction(Transaction transaction)
     {
         Transaction = transaction;
-        Size = HEADER_SIZE + (uint) transaction.Data.Length;
+        Size = (uint)WriteAheadLogTransactionHeader.Size + (uint)transaction
+            .Data.Length;
     }
 
+    /// <summary>
+    /// 
+    /// </summary>
     public uint Size { get; }
     public Transaction Transaction { get; }
-    public ref WriteAheadLogTransactionHeader Header => ref _header;
     public ulong CommitSequenceNumber { get; private set; }
-    
+
     public Task WaitForCommitAsync()
     {
         return _awaiter.WaitForSignalAsync();
@@ -59,15 +61,17 @@ public sealed class WriteAheadLogTransaction
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public unsafe bool TryCopyTo(StorageBlock block)
+    public bool TryCopyTo(StorageBlock block)
     {
-        fixed (WriteAheadLogTransactionHeader* header = &_header)
-            block.TryWrite(header, HEADER_SIZE);
+        if (block.BytesAvailable < Size)
+            return false;
 
-        block.TryWrite(Transaction.Data.Span);
+        block.Write(ref _header);
+        block.Write(Transaction.Data.Span);
+
         return true;
     }
-    
+
     public void Abort(Exception ex)
     {
         _awaiter.SignalFault(ex);
