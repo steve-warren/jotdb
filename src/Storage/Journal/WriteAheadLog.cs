@@ -34,11 +34,11 @@ public sealed class WriteAheadLog : IDisposable
 
             var storageTransaction = new StorageTransaction(
                 transactionNumber: transactionNumber,
-                transactions: _buffer.ReadTransactions(),
-                WriteAheadLogFile);
+                WriteAheadLogFile,
+                _buffer);
 
             cancellationToken.ThrowIfCancellationRequested();
-            storageTransaction.Commit(cancellationToken);
+            await storageTransaction.CommitAsync(cancellationToken).ConfigureAwait(false);
         }
     }
 

@@ -13,73 +13,63 @@ namespace JotDB.Storage;
 /// </remarks>
 public class StorageTransaction : IDisposable
 {
-    private readonly IEnumerable<WriteAheadLogTransaction> _transactions;
     private readonly WriteAheadLogFile _writeAheadLogFile;
+    private readonly WriteAheadLogTransactionBuffer _transactionBuffer;
 
     public StorageTransaction(
         ulong transactionNumber,
-        IEnumerable<WriteAheadLogTransaction> transactions,
-        WriteAheadLogFile writeAheadLogFile)
+        WriteAheadLogFile writeAheadLogFile,
+        WriteAheadLogTransactionBuffer transactionBuffer)
     {
         TransactionNumber = transactionNumber;
-        _transactions = transactions;
         _writeAheadLogFile = writeAheadLogFile;
+        _transactionBuffer = transactionBuffer;
     }
 
     public ulong TransactionNumber { get; }
 
-    public void Commit(CancellationToken cancellationToken = default)
+    public async Task CommitAsync(CancellationToken cancellationToken = default)
     {
         using var commitAwaiter = new AsyncAwaiter(cancellationToken);
         var commitSequenceNumber = 0UL;
         var watch = Stopwatch.StartNew();
 
-        var blocks = new LinkedList<StorageBlock>();
-        var currentBlock =
+        var block =
             new StorageBlock(0, 0, AlignedMemoryPool.Default.Rent());
-
-        blocks.AddFirst(currentBlock);
 
         try
         {
-            foreach (var transaction in _transactions.Take(1024))
+            await foreach (var transaction in _transactionBuffer
+                               .ReadTransactionsAsync(
+                                   4096,
+                                   TimeSpan.FromMilliseconds(10),
+                                   cancellationToken))
             {
                 transaction.Prepare(++commitSequenceNumber,
                     timestamp: DateTime.UtcNow.Ticks);
 
-                if (transaction.TryCopyTo(currentBlock))
+                if (transaction.TryCopyTo(block))
                     transaction.Commit(after: commitAwaiter.Task);
 
-                else if (transaction.Size > currentBlock.Size)
+                else if (transaction.Size > block.Size)
                     transaction.Abort(
                         new Exception("Data would be truncated."));
-
-                else
-                {
-                    currentBlock = new StorageBlock(0, 0,
-                        AlignedMemoryPool.Default.Rent());
-                    blocks.AddLast(currentBlock);
-
-                    if (transaction.TryCopyTo(currentBlock))
-                        transaction.Commit(after: commitAwaiter.Task);
-                    else
-                        transaction.Abort(
-                            new Exception("Failed to write to storage block"));
-                }
             }
 
-            _writeAheadLogFile.WriteToDisk(blocks);
+            if (block.BytesWritten <= 0)
+                return;
+
+            _writeAheadLogFile.WriteToDisk(block);
 
             Console.WriteLine(
-                $"strx {TransactionNumber} committed {commitSequenceNumber} trx in {watch.Elapsed.TotalMilliseconds} ms");
+                $"strx {TransactionNumber} committed {block.BytesWritten} bytes from {commitSequenceNumber} trx in {watch.Elapsed.TotalMilliseconds} ms");
         }
 
         finally
         {
             commitAwaiter.SignalCompletion();
 
-            foreach (var usedBlock in blocks)
-                AlignedMemoryPool.Default.Return(usedBlock.Memory);
+            AlignedMemoryPool.Default.Return(block.Memory);
         }
     }
 

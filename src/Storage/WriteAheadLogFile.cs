@@ -66,15 +66,10 @@ public sealed class WriteAheadLogFile : IDisposable
     public void FlushToDisk() => RandomAccess.FlushToDisk(_fileHandle);
 
     public void WriteToDisk(
-        LinkedList<StorageBlock> blocks)
+        StorageBlock block)
     {
-        Console.WriteLine($"writing {blocks.Count} blocks to journal on disk.");
-
-        foreach (var block in blocks)
-        {
-            block.ZeroUnusedBytes();
-            RandomAccess.Write(_fileHandle, block.Memory.Span, _offset);
-            _offset += block.Size;
-        }
+        block.ZeroUnusedBytes();
+        RandomAccess.Write(_fileHandle, block.Memory.Span, _offset);
+        _offset += block.Size;
     }
 }

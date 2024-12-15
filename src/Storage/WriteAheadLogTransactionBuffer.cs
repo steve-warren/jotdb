@@ -1,3 +1,5 @@
+using System.Diagnostics;
+using System.Runtime.CompilerServices;
 using System.Threading.Channels;
 using JotDB.Storage.Journal;
 
@@ -34,10 +36,39 @@ public sealed class WriteAheadLogTransactionBuffer : IDisposable
     public ValueTask<bool> WaitForTransactionsAsync(CancellationToken cancellationToken = default) =>
         _channel.Reader.WaitToReadAsync(cancellationToken);
 
-    public IEnumerable<WriteAheadLogTransaction> ReadTransactions()
+    public async IAsyncEnumerable<WriteAheadLogTransaction> ReadTransactionsAsync(
+        int bytes,
+        TimeSpan timeout,
+        [EnumeratorCancellation] CancellationToken cancellationToken)
     {
-        while (_channel.Reader.TryRead(out var transaction))
-            yield return transaction;
+        uint totalBytes = 0;
+        var timeoutTask = Task.Delay(timeout, cancellationToken);
+
+        while (true)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var readTask = _channel.Reader.WaitToReadAsync(cancellationToken).AsTask();
+            var completedTask = await Task.WhenAny(timeoutTask, readTask).ConfigureAwait(false);
+
+            if (completedTask == timeoutTask)
+                yield break;
+
+            while (_channel.Reader.TryPeek(out var transaction))
+            {
+                if (timeoutTask.IsCompleted)
+                    yield break;
+
+                Debug.Assert(transaction.Size <= bytes, "Transaction size exceeds buffer size.");
+
+                if (totalBytes + transaction.Size > bytes)
+                    yield break;
+
+                yield return transaction;
+                _channel.Reader.TryRead(out _);
+                totalBytes += transaction.Size;
+            }
+        }
     }
 
     public Task WriteTransactionAsync(WriteAheadLogTransaction transaction)
