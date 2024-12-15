@@ -68,7 +68,7 @@ public sealed class WriteAheadLogFile : IDisposable
     public void WriteToDisk(
         LinkedList<StorageBlock> blocks)
     {
-        Console.WriteLine("writing to journal on disk.");
+        Console.WriteLine($"writing {blocks.Count} blocks to journal on disk.");
 
         foreach (var block in blocks)
         {
