@@ -71,7 +71,7 @@ public class StorageTransaction : IDisposable
             _writeAheadLogFile.WriteToDisk(blocks);
 
             Console.WriteLine(
-                $"strx {TransactionNumber} committed {commitSequenceNumber} trx in {watch.ElapsedTicks} ticks");
+                $"strx {TransactionNumber} committed {commitSequenceNumber} trx in {watch.Elapsed.TotalMilliseconds} ms");
         }
 
         finally

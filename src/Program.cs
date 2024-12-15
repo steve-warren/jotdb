@@ -46,7 +46,7 @@ var data =
         """u8.ToArray();
 
     var tasks = Enumerable.Range(0, Environment.ProcessorCount)
-        .Select(_ => SimulateClientAsync(10));
+        .Select(_ => SimulateClientAsync(100_000));
 
     await Task.WhenAll(tasks);
 
