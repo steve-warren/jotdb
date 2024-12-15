@@ -35,7 +35,8 @@ public class StorageTransaction : IDisposable
         var watch = Stopwatch.StartNew();
 
         var blocks = new LinkedList<StorageBlock>();
-        var currentBlock = new StorageBlock(0, 0, AlignedMemoryPool.Default.Rent());
+        var currentBlock =
+            new StorageBlock(0, 0, AlignedMemoryPool.Default.Rent());
 
         blocks.AddFirst(currentBlock);
 
@@ -43,27 +44,34 @@ public class StorageTransaction : IDisposable
         {
             foreach (var transaction in _transactions.Take(1024))
             {
-                transaction.Prepare(++commitSequenceNumber, timestamp: DateTime.UtcNow.Ticks);
+                transaction.Prepare(++commitSequenceNumber,
+                    timestamp: DateTime.UtcNow.Ticks);
 
                 if (transaction.TryCopyTo(currentBlock))
                     transaction.Commit(after: commitAwaiter.Task);
 
                 else if (transaction.Size > currentBlock.Size)
-                    transaction.Abort(new Exception("Data would be truncated."));
+                    transaction.Abort(
+                        new Exception("Data would be truncated."));
 
                 else
                 {
-                    currentBlock = new StorageBlock(0, 0, AlignedMemoryPool.Default.Rent());
+                    currentBlock = new StorageBlock(0, 0,
+                        AlignedMemoryPool.Default.Rent());
                     blocks.AddLast(currentBlock);
 
                     if (transaction.TryCopyTo(currentBlock))
                         transaction.Commit(after: commitAwaiter.Task);
                     else
-                        transaction.Abort(new Exception("Failed to write to storage block"));
+                        transaction.Abort(
+                            new Exception("Failed to write to storage block"));
                 }
             }
 
             _writeAheadLogFile.WriteToDisk(blocks);
+
+            Console.WriteLine(
+                $"strx {TransactionNumber} committed {commitSequenceNumber} trx in {watch.ElapsedTicks} ticks");
         }
 
         finally
@@ -73,9 +81,6 @@ public class StorageTransaction : IDisposable
             foreach (var usedBlock in blocks)
                 AlignedMemoryPool.Default.Return(usedBlock.Memory);
         }
-
-        Console.WriteLine(
-            $"strx {TransactionNumber} committed {commitSequenceNumber} trx in {watch.ElapsedTicks} ticks");
     }
 
     public void Dispose()
