@@ -1,6 +1,6 @@
 namespace JotDB.Storage;
 
-public enum TransactionType : int
+public enum TransactionType
 {
     Insert = 1,
     Update = 2,

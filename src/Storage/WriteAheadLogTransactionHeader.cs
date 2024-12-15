@@ -4,7 +4,7 @@ using System.Runtime.InteropServices;
 namespace JotDB.Storage;
 
 [StructLayout(LayoutKind.Explicit, Pack = 1)]
-public struct WriteAheadLogTransactionHeader
+public ref struct WriteAheadLogTransactionHeader
 {
     public static readonly int Size = Unsafe
         .SizeOf<WriteAheadLogTransactionHeader>();

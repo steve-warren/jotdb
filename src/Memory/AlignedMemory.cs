@@ -1,7 +1,7 @@
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
-namespace JotDB.Storage;
+namespace JotDB.Memory;
 
 public sealed unsafe class AlignedMemory : IEquatable<AlignedMemory>
 {

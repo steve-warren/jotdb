@@ -26,12 +26,11 @@ namespace JotDB.Storage;
 public sealed class WriteAheadLogTransactionBuffer : IDisposable
 {
     private readonly Channel<WriteAheadLogTransaction> _channel =
-        Channel.CreateBounded<WriteAheadLogTransaction>(
-            new BoundedChannelOptions(Environment.ProcessorCount * 2)
+        Channel.CreateUnbounded<WriteAheadLogTransaction>(
+            new UnboundedChannelOptions()
             {
                 SingleReader = true,
                 SingleWriter = false,
-                FullMode = BoundedChannelFullMode.Wait
             });
 
     public ValueTask<bool> WaitForTransactionsAsync(
@@ -79,14 +78,8 @@ public sealed class WriteAheadLogTransactionBuffer : IDisposable
 
     public Task WriteTransactionAsync(WriteAheadLogTransaction transaction)
     {
-        return _channel.Writer.WriteAsync(transaction).AsTask().ContinueWith(
-                (_, trx) =>
-                {
-                    var pendingTransaction = (WriteAheadLogTransaction)trx!;
-
-                    return pendingTransaction.WaitForCommitAsync();
-                }, transaction, TaskContinuationOptions.ExecuteSynchronously)
-            .Unwrap();
+        _channel.Writer.TryWrite(transaction);
+        return transaction.WaitForCommitAsync();
     }
 
     public void Dispose() =>

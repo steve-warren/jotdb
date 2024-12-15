@@ -1,11 +1,12 @@
 ﻿using System.Diagnostics;
+using System.Security.Cryptography;
 using JotDB;
 
 using var database = new Database();
 var run = database.RunAsync();
 var cts = new CancellationTokenSource();
 
-Console.CancelKeyPress += (_, e) =>
+Console.CancelKeyPress += (_, _) =>
 {
     database.TryShutdown();
     run.Wait();
@@ -13,7 +14,7 @@ Console.CancelKeyPress += (_, e) =>
 };
 
 // macOS: quit and force quit
-AppDomain.CurrentDomain.ProcessExit += (_, e) =>
+AppDomain.CurrentDomain.ProcessExit += (_, _) =>
 {
     cts.Cancel();
     database.TryShutdown();
@@ -22,11 +23,11 @@ AppDomain.CurrentDomain.ProcessExit += (_, e) =>
     Console.WriteLine("process exited");
 };
 
-AppDomain.CurrentDomain.UnhandledException += (_, e) =>
+AppDomain.CurrentDomain.UnhandledException += (_, _) =>
 {
     database.TryShutdown();
     run.Wait();
-    Console.WriteLine($"Unhandled exception occurred.");
+    Console.WriteLine("Unhandled exception occurred.");
 };
 
 var data =
@@ -45,23 +46,17 @@ var data =
           },
         """u8.ToArray();
 
-var tasks = Enumerable.Range(0, Environment.ProcessorCount)
-    .Select(clientId => SimulateClientAsync(clientId, 10));
+var recordsToInsert = 100_000;
 
-await Task.WhenAll(tasks);
+for (var i = 0; i < Environment.ProcessorCount; i++)
+{
+    _ = Task.Run(() =>
+    {
+        for (var j = 0; j < recordsToInsert; j++)
+        {
+            _ = database.InsertDocumentAsync(data);
+        }
+    });
+}
 
 run.Wait();
-return;
-
-async Task SimulateClientAsync(int clientId, int recordsToInsert)
-{
-    var watch = Stopwatch.StartNew();
-
-    for (var i = 0; i < recordsToInsert; i++)
-    {
-        watch.Restart();
-        await database.InsertDocumentAsync(data);
-    }
-    
-    Console.WriteLine($"clientId {clientId} completed");
-}

@@ -1,5 +1,6 @@
 ﻿using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
+using JotDB.Memory;
 using JotDB.Threading;
 
 namespace JotDB.Storage.Journal;
@@ -15,7 +16,6 @@ namespace JotDB.Storage.Journal;
 public sealed class WriteAheadLogTransaction
 {
     private readonly AsyncAwaiter _awaiter = new();
-    private WriteAheadLogTransactionHeader _header;
 
     /// <summary>
     /// Represents a wrapper around a transaction, designed to work with a write-ahead log (WAL) mechanism.
@@ -32,10 +32,8 @@ public sealed class WriteAheadLogTransaction
             .Data.Length;
     }
 
-    /// <summary>
-    /// 
-    /// </summary>
     public uint Size { get; }
+
     public Transaction Transaction { get; }
     public ulong CommitSequenceNumber { get; private set; }
 
@@ -44,30 +42,29 @@ public sealed class WriteAheadLogTransaction
         return _awaiter.WaitForSignalAsync();
     }
 
-    public void Prepare(
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    public bool TryWrite(
+        ref AlignedMemoryWriter writer,
         ulong commitSequenceNumber,
         long timestamp)
     {
+        if (writer.BytesAvailable < Size)
+            return false;
+
         CommitSequenceNumber = commitSequenceNumber;
-        _header = new WriteAheadLogTransactionHeader
+
+        var header = new WriteAheadLogTransactionHeader
         {
             DataLength = Transaction.Data.Length,
             TransactionSequenceNumber = Transaction.TransactionSequenceNumber,
             CommitSequenceNumber = commitSequenceNumber,
-            TransactionType = (int) Transaction.Type,
+            TransactionType = (int)Transaction.Type,
             Hash = MD5.HashData(Transaction.Data.Span),
             Timestamp = timestamp
         };
-    }
 
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public bool TryCopyTo(StorageBlock block)
-    {
-        if (block.BytesAvailable < Size)
-            return false;
-
-        block.Write(ref _header);
-        block.Write(Transaction.Data.Span);
+        writer.Write(header);
+        writer.Write(Transaction.Data.Span);
 
         return true;
     }

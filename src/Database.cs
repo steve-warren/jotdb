@@ -34,7 +34,7 @@ public sealed class Database : IDisposable
     }
 
     /// <summary>
-    /// Runs the database, starting all registered background workers and waiting for a shutdown signal.
+    /// Runs the database, starting all registered background workers and waits for the shutdown signal.
     /// </summary>
     /// <returns>A task that represents the asynchronous operation of running the database.</returns>
     public async Task RunAsync()
@@ -69,14 +69,14 @@ public sealed class Database : IDisposable
             $"{Environment.OSVersion.VersionString} ({Environment.OSVersion.Platform})");
         Console.WriteLine($"{Environment.ProcessorCount} cores");
 
-        ThreadPool.GetAvailableThreads(out int availableWorkerThreads,
-            out int availableIoThreads);
-        ThreadPool.GetMaxThreads(out int maxWorkerThreads,
-            out int maxIoThreads);
-        ThreadPool.GetMinThreads(out int minWorkerThreads,
-            out int minIoThreads);
+        ThreadPool.GetAvailableThreads(out var availableWorkerThreads,
+            out var availableIoThreads);
+        ThreadPool.GetMaxThreads(out var maxWorkerThreads,
+            out var maxIoThreads);
+        ThreadPool.GetMinThreads(out var minWorkerThreads,
+            out var minIoThreads);
 
-        Console.WriteLine($"Thread Pool Status:");
+        Console.WriteLine("Thread Pool Status:");
         Console.WriteLine(
             $"  Worker Threads: {availableWorkerThreads}/{maxWorkerThreads} (Min: {minWorkerThreads})");
         Console.WriteLine(
@@ -100,10 +100,6 @@ public sealed class Database : IDisposable
         }
 
         await Task.Delay(1000);
-
-        _flushTransactionsToDataPagesTask =
-            _storageEnvironment.WriteAheadLog.FlushBufferAsync(
-                _shutdownTokenSource.Token);
     }
 
     private Task OnRunningAsync()
@@ -111,6 +107,10 @@ public sealed class Database : IDisposable
         _state = DatabaseState.Running;
 
         Console.WriteLine("running database");
+
+        _flushTransactionsToDataPagesTask =
+            _storageEnvironment.WriteAheadLog.FlushBufferAsync(
+                _shutdownTokenSource.Token);
 
         return _runningStateTask.Task;
     }

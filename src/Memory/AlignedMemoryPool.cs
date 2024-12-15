@@ -1,6 +1,4 @@
-using JotDB.Storage;
-
-namespace JotDB;
+namespace JotDB.Memory;
 
 public sealed class AlignedMemoryPool : IDisposable
 {

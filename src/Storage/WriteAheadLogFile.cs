@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Runtime.InteropServices;
+using JotDB.Memory;
 using JotDB.Platform.MacOS;
 using Microsoft.Win32.SafeHandles;
 
@@ -66,10 +67,9 @@ public sealed class WriteAheadLogFile : IDisposable
     public void FlushToDisk() => RandomAccess.FlushToDisk(_fileHandle);
 
     public void WriteToDisk(
-        StorageBlock block)
+        AlignedMemory memory)
     {
-        block.ZeroUnusedBytes();
-        RandomAccess.Write(_fileHandle, block.Memory.Span, _offset);
-        _offset += block.Size;
+        RandomAccess.Write(_fileHandle, memory.Span, _offset);
+        _offset += memory.Size;
     }
 }
