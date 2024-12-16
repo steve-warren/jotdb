@@ -46,17 +46,12 @@ var data =
           },
         """u8.ToArray();
 
-var recordsToInsert = 100_000;
+Console.WriteLine("Press enter to insert a document");
 
-for (var i = 0; i < Environment.ProcessorCount; i++)
+while (!cts.IsCancellationRequested)
 {
-    _ = Task.Run(() =>
-    {
-        for (var j = 0; j < recordsToInsert; j++)
-        {
-            _ = database.InsertDocumentAsync(data);
-        }
-    });
+    if (Console.ReadKey().Key == ConsoleKey.Enter)
+        await database.InsertDocumentAsync(data);
 }
 
 run.Wait();

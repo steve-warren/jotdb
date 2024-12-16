@@ -29,7 +29,7 @@ public sealed class Database : IDisposable
                 TransactionType.Insert);
         await transaction.CommitAsync().ConfigureAwait(false);
 
-        Debug.WriteLine($"trx completed in {transaction.ExecutionTime
+        Console.WriteLine($"trx completed in {transaction.ExecutionTime
             .TotalMilliseconds} ms");
     }
 
