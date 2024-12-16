@@ -37,47 +37,27 @@ public sealed class WriteAheadLogTransactionBuffer : IDisposable
         CancellationToken cancellationToken = default) =>
         _channel.Reader.WaitToReadAsync(cancellationToken);
 
-    public async IAsyncEnumerable<WriteAheadLogTransaction>
-        ReadTransactionsAsync(
+    public IEnumerable<WriteAheadLogTransaction>
+        ReadTransactions(
             int bytes,
-            TimeSpan timeout,
-            [EnumeratorCancellation] CancellationToken cancellationToken)
+            CancellationToken cancellationToken)
     {
-        var watch = Stopwatch.StartNew();
-        SpinWait.SpinUntil(() => false, timeout);
-        
-        Console.WriteLine(watch.ElapsedMilliseconds);
-        yield break;
-        uint totalBytes = 0;
-        var timeoutTask = Task.Delay(timeout, cancellationToken);
+        var totalBytes = 0U;
 
-        while (true)
+        cancellationToken.ThrowIfCancellationRequested();
+
+        while (_channel.Reader.TryPeek(out var transaction))
         {
-            cancellationToken.ThrowIfCancellationRequested();
+            Debug.Assert(transaction.Size <= bytes,
+                "Transaction size exceeds buffer size.");
 
-            while (_channel.Reader.TryPeek(out var transaction))
-            {
-                if (timeoutTask.IsCompleted)
-                    yield break;
-
-                Debug.Assert(transaction.Size <= bytes,
-                    "Transaction size exceeds buffer size.");
-
-                if (totalBytes + transaction.Size > bytes)
-                    yield break;
-
-                yield return transaction;
-                _channel.Reader.TryRead(out _);
-                totalBytes += transaction.Size;
-            }
-
-            var readTask = _channel.Reader.WaitToReadAsync(cancellationToken)
-                .AsTask();
-            var completedTask = await Task.WhenAny(timeoutTask, readTask)
-                .ConfigureAwait(false);
-
-            if (completedTask == timeoutTask)
+            if (totalBytes + transaction.Size > bytes)
                 yield break;
+
+            _channel.Reader.TryRead(out _);
+            totalBytes += transaction.Size;
+
+            yield return transaction;
         }
     }
 

@@ -35,7 +35,7 @@ public sealed class StorageTransaction : IDisposable
     /// </summary>
     /// <param name="cancellationToken">A token to observe while waiting for the task to complete.</param>
     /// <returns>A task that represents the asynchronous commit operation.</returns>
-    public async Task CommitAsync(CancellationToken cancellationToken = default)
+    public void Commit(CancellationToken cancellationToken = default)
     {
         using var commitAwaiter = new AsyncAwaiter(cancellationToken);
         var commitSequenceNumber = 0UL;
@@ -46,10 +46,9 @@ public sealed class StorageTransaction : IDisposable
 
         try
         {
-            await foreach (var transaction in _transactionBuffer
-                               .ReadTransactionsAsync(
+            foreach (var transaction in _transactionBuffer
+                               .ReadTransactions(
                                    4096,
-                                   TimeSpan.FromMilliseconds(1),
                                    cancellationToken))
             {
                 if (transaction.TryWrite(
@@ -70,7 +69,7 @@ public sealed class StorageTransaction : IDisposable
             writer.ZeroUnusedBytes();
 
             //_writeAheadLogFile.WriteToDisk(memory);
-            await Task.Delay(TimeSpan.FromMilliseconds(0.01), CancellationToken.None);
+            Thread.Sleep(TimeSpan.FromMilliseconds(0.01));
 
             Console.WriteLine(
                 $"strx {TransactionNumber} committed {writer.BytesWritten} bytes from {commitSequenceNumber} trx in {watch.Elapsed.TotalMilliseconds} ms");

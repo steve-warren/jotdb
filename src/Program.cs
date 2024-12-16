@@ -50,8 +50,16 @@ Console.WriteLine("Press enter to insert a document");
 
 while (!cts.IsCancellationRequested)
 {
-    if (Console.ReadKey().Key == ConsoleKey.Enter)
-        await database.InsertDocumentAsync(data);
+    for (var i = 0; i < Environment.ProcessorCount; i++)
+    {
+        _ = Task.WhenAll(
+            database.InsertDocumentAsync(data),
+            database.InsertDocumentAsync(data),
+            database.InsertDocumentAsync(data),
+            database.InsertDocumentAsync(data));
+    }
+
+    Console.ReadLine();
 }
 
 run.Wait();

@@ -38,7 +38,7 @@ public sealed class WriteAheadLog : IDisposable
                 _buffer);
 
             cancellationToken.ThrowIfCancellationRequested();
-            await storageTransaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+            storageTransaction.Commit(cancellationToken);
         }
     }
 
