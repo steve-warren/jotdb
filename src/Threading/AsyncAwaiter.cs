@@ -28,7 +28,7 @@ public sealed class AsyncAwaiter : IDisposable
     private readonly CancellationTokenSource _cts;
     private readonly CancellationTokenRegistration _ctr;
 
-    private readonly TaskCompletionSource _tcs =
+    private TaskCompletionSource _tcs =
         new(TaskCreationOptions.RunContinuationsAsynchronously);
 
     public AsyncAwaiter(CancellationToken cancellationToken = default)
@@ -54,11 +54,13 @@ public sealed class AsyncAwaiter : IDisposable
 
     public void SignalCompletionAfter(Task after)
     {
+        var tcsLocal = _tcs;
+
         after.ContinueWith((_, o) =>
         {
             var tcs = (TaskCompletionSource)o;
             tcs.TrySetResult();
-        }, _tcs, _token, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Current);
+        }, tcsLocal, _token, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Current);
     }
 
     public void SignalFault(Exception exception)
@@ -72,6 +74,18 @@ public sealed class AsyncAwaiter : IDisposable
         return _tcs.Task;
     }
 
+    public bool TryReset()
+    {
+        if (!_tcs.Task.IsCompleted)
+            return false;
+        
+        var tcsOriginal = Interlocked.Exchange(
+            ref _tcs,
+            new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously));
+
+        return true;
+    }
+    
     public void Dispose()
     {
         _cts.Cancel();

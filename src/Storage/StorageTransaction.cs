@@ -47,22 +47,22 @@ public sealed class StorageTransaction : IDisposable
         try
         {
             foreach (var transaction in _transactionBuffer
-                               .ReadTransactions(
-                                   4096,
-                                   cancellationToken))
+                         .ReadTransactions(
+                             4096,
+                             cancellationToken))
             {
                 if (transaction.TryWrite(
                         ref writer,
                         ++commitSequenceNumber,
                         DateTime.UtcNow.Ticks))
-                        
+
                     transaction.Commit(after: commitAwaiter.Task);
 
                 else if (transaction.Size > memory.Size)
                     transaction.Abort(
                         new Exception("Data would be truncated."));
             }
-            
+
             if (writer.BytesWritten == 0)
                 return;
 
