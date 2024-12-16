@@ -72,7 +72,7 @@ public sealed class StorageTransaction : IDisposable
             //_writeAheadLogFile.WriteToDisk(memory);
             await Task.Delay(TimeSpan.FromMilliseconds(0.01), CancellationToken.None);
 
-            Debug.WriteLine(
+            Console.WriteLine(
                 $"strx {TransactionNumber} committed {writer.BytesWritten} bytes from {commitSequenceNumber} trx in {watch.Elapsed.TotalMilliseconds} ms");
         }
 
