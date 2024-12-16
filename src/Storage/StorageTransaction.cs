@@ -49,7 +49,7 @@ public sealed class StorageTransaction : IDisposable
             await foreach (var transaction in _transactionBuffer
                                .ReadTransactionsAsync(
                                    4096,
-                                   TimeSpan.FromMilliseconds(9),
+                                   TimeSpan.FromMilliseconds(1),
                                    cancellationToken))
             {
                 if (transaction.TryWrite(

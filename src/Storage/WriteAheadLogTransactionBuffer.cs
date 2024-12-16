@@ -43,6 +43,11 @@ public sealed class WriteAheadLogTransactionBuffer : IDisposable
             TimeSpan timeout,
             [EnumeratorCancellation] CancellationToken cancellationToken)
     {
+        var watch = Stopwatch.StartNew();
+        SpinWait.SpinUntil(() => false, timeout);
+        
+        Console.WriteLine(watch.ElapsedMilliseconds);
+        yield break;
         uint totalBytes = 0;
         var timeoutTask = Task.Delay(timeout, cancellationToken);
 
