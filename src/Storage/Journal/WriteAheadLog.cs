@@ -25,11 +25,14 @@ public sealed class WriteAheadLog : IDisposable
         return _buffer.WriteTransactionAsync(walTransaction);
     }
 
-    public async Task FlushBufferAsync(CancellationToken cancellationToken)
+    public void FlushBuffer(CancellationToken cancellationToken)
     {
-        while (await _buffer.WaitForTransactionsAsync(
-                   cancellationToken).ConfigureAwait(false))
+        while (true)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            _buffer.WaitForTransactions(cancellationToken);
+
             var transactionNumber = Interlocked.Increment(ref _storageTransactionSequence);
 
             var storageTransaction = new StorageTransaction(

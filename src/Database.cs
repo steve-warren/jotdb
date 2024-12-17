@@ -28,9 +28,6 @@ public sealed class Database : IDisposable
             _storageEnvironment.CreateTransaction(document,
                 TransactionType.Insert);
         await transaction.CommitAsync().ConfigureAwait(false);
-
-        Console.WriteLine($"trx completed in {transaction.ExecutionTime
-            .TotalMilliseconds} ms");
     }
 
     /// <summary>
@@ -109,8 +106,9 @@ public sealed class Database : IDisposable
         Console.WriteLine("running database");
 
         _flushTransactionsToDataPagesTask =
-            _storageEnvironment.WriteAheadLog.FlushBufferAsync(
-                _shutdownTokenSource.Token);
+            Task.Factory.StartNew(() =>
+                _storageEnvironment.WriteAheadLog.FlushBuffer(
+                    _shutdownTokenSource.Token), TaskCreationOptions.LongRunning);
 
         return _runningStateTask.Task;
     }

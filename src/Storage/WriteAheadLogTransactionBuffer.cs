@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Threading.Channels;
@@ -25,17 +26,18 @@ namespace JotDB.Storage;
 /// <seealso cref="WriteAheadLog" />
 public sealed class WriteAheadLogTransactionBuffer : IDisposable
 {
-    private readonly Channel<WriteAheadLogTransaction> _channel =
-        Channel.CreateUnbounded<WriteAheadLogTransaction>(
-            new UnboundedChannelOptions()
-            {
-                SingleReader = true,
-                SingleWriter = false,
-            });
+    private readonly ConcurrentQueue<WriteAheadLogTransaction> _queue = new();
+    private readonly ManualResetEventSlim _transactionsAvailable = new(false);
 
-    public ValueTask<bool> WaitForTransactionsAsync(
-        CancellationToken cancellationToken = default) =>
-        _channel.Reader.WaitToReadAsync(cancellationToken);
+    ~WriteAheadLogTransactionBuffer()
+    {
+        Dispose();
+    }
+
+    public void WaitForTransactions(CancellationToken cancellationToken)
+    {
+        _transactionsAvailable.Wait(cancellationToken);
+    }
 
     public IEnumerable<WriteAheadLogTransaction>
         ReadTransactions(
@@ -46,7 +48,7 @@ public sealed class WriteAheadLogTransactionBuffer : IDisposable
 
         cancellationToken.ThrowIfCancellationRequested();
 
-        while (_channel.Reader.TryPeek(out var transaction))
+        while (_queue.TryPeek(out var transaction))
         {
             Debug.Assert(transaction.Size <= bytes,
                 "Transaction size exceeds buffer size.");
@@ -54,19 +56,27 @@ public sealed class WriteAheadLogTransactionBuffer : IDisposable
             if (totalBytes + transaction.Size > bytes)
                 yield break;
 
-            _channel.Reader.TryRead(out _);
+            _queue.TryDequeue(out _);
             totalBytes += transaction.Size;
 
             yield return transaction;
         }
+
+        _transactionsAvailable.Reset();
     }
 
     public Task WriteTransactionAsync(WriteAheadLogTransaction transaction)
     {
-        _channel.Writer.TryWrite(transaction);
+        _queue.Enqueue(transaction);
+        _transactionsAvailable.Set();
         return transaction.WaitForCommitAsync();
     }
 
-    public void Dispose() =>
-        _channel.Writer.TryComplete();
+    public void Dispose()
+    {
+        Debug.Assert(_queue.Count is 0, "WAL transactions are still pending in the buffer when calling Dispose().");
+        _transactionsAvailable.Dispose();
+
+        GC.SuppressFinalize(this);
+    }
 }

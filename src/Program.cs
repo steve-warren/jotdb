@@ -59,7 +59,7 @@ while (!cts.IsCancellationRequested)
             database.InsertDocumentAsync(data));
     }
 
-    Console.ReadLine();
+    Thread.Sleep(100);
 }
 
 run.Wait();
