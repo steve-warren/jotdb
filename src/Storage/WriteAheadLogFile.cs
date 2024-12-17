@@ -6,7 +6,7 @@ using Microsoft.Win32.SafeHandles;
 
 namespace JotDB.Storage;
 
-public sealed class WriteAheadLogFile : IDisposable
+public sealed class WriteAheadLogFile : IDisposable, IWriteAheadLogFile
 {
     private readonly SafeFileHandle _fileHandle;
     private long _offset;
@@ -52,6 +52,7 @@ public sealed class WriteAheadLogFile : IDisposable
         string path,
         long offset)
     {
+        File.Delete(path);
         Path = path;
         _offset = offset;
         _fileHandle = OpenFileHandle(path);

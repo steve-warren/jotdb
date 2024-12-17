@@ -1,6 +1,4 @@
-﻿using System.Diagnostics;
-using System.Security.Cryptography;
-using JotDB;
+﻿using JotDB;
 
 using var database = new Database();
 var run = database.RunAsync();
@@ -10,7 +8,6 @@ Console.CancelKeyPress += (_, _) =>
 {
     database.TryShutdown();
     run.Wait();
-    Console.WriteLine("process exited");
 };
 
 // macOS: quit and force quit
@@ -20,7 +17,6 @@ AppDomain.CurrentDomain.ProcessExit += (_, _) =>
     database.TryShutdown();
 
     run.Wait();
-    Console.WriteLine("process exited");
 };
 
 AppDomain.CurrentDomain.UnhandledException += (_, _) =>
@@ -46,7 +42,15 @@ var data =
           },
         """u8.ToArray();
 
-Console.WriteLine("Press enter to insert a document");
+_ = Task.Run(() =>
+{
+    while (true)
+    {
+        Thread.Sleep(1000);
+        Console.WriteLine($"{DateTime.Now} - {database
+            .AverageTransactionExecutionTime} ms");
+    }
+}, cts.Token);
 
 while (!cts.IsCancellationRequested)
 {

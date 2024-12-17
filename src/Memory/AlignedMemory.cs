@@ -3,10 +3,13 @@ using System.Runtime.InteropServices;
 
 namespace JotDB.Memory;
 
-public sealed unsafe class AlignedMemory : IEquatable<AlignedMemory>
+public sealed unsafe class AlignedMemory : IDisposable,
+    IEquatable<AlignedMemory>
 {
+    private static uint sequenceNumber_;
     private readonly void* _pointer;
     private bool _disposed;
+    private readonly uint _id;
 
     /// <summary>
     /// Allocates a new <see cref="AlignedMemory"/> with the specified size and alignment.
@@ -29,6 +32,7 @@ public sealed unsafe class AlignedMemory : IEquatable<AlignedMemory>
         nuint size,
         nuint alignment)
     {
+        _id = Interlocked.Increment(ref sequenceNumber_);
         _pointer = NativeMemory.AlignedAlloc(size, alignment);
         Size = (int)size;
     }
@@ -38,6 +42,7 @@ public sealed unsafe class AlignedMemory : IEquatable<AlignedMemory>
         Dispose();
     }
 
+    public uint Id => _id;
     public int Size { get; }
     public void* Pointer => _pointer;
 
@@ -50,6 +55,8 @@ public sealed unsafe class AlignedMemory : IEquatable<AlignedMemory>
 
         _disposed = true;
         NativeMemory.AlignedFree(_pointer);
+
+        GC.SuppressFinalize(this);
     }
 
     public bool Equals(AlignedMemory? other)

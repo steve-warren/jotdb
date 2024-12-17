@@ -1,18 +1,27 @@
-using System.Diagnostics;
+using JotDB.Metrics;
 using JotDB.Storage;
+using JotDB.Storage.Journal;
 
 namespace JotDB;
 
 public sealed class Database : IDisposable
 {
-    private readonly StorageEnvironment _storageEnvironment = new();
     private readonly List<BackgroundWorker> _backgroundWorkers = [];
     private readonly TaskCompletionSource _runningStateTask = new();
     private volatile DatabaseState _state = DatabaseState.Stopped;
     private readonly CancellationTokenSource _shutdownTokenSource = new();
     private Task _flushTransactionsToDataPagesTask = Task.CompletedTask;
+    private ExponentialMovingAverage _ema = new(0.2);
+    private ulong _transactionSequence;
+
+    public Database(bool inMemory = true)
+    {
+        WriteAheadLog = new WriteAheadLog(inMemory);
+    }
 
     public DatabaseState State => _state;
+    public double AverageTransactionExecutionTime => _ema.Value;
+    public WriteAheadLog WriteAheadLog { get; }
 
     public void AddBackgroundWorker(
         string name,
@@ -25,9 +34,10 @@ public sealed class Database : IDisposable
     public async Task InsertDocumentAsync(ReadOnlyMemory<byte> document)
     {
         using var transaction =
-            _storageEnvironment.CreateTransaction(document,
+            CreateTransaction(document,
                 TransactionType.Insert);
         await transaction.CommitAsync().ConfigureAwait(false);
+        _ema.Update(transaction.ExecutionTime.TotalMilliseconds);
     }
 
     /// <summary>
@@ -54,7 +64,27 @@ public sealed class Database : IDisposable
 
     public void Dispose()
     {
-        _storageEnvironment.WriteAheadLog.Dispose();
+        WriteAheadLog.Dispose();
+    }
+
+    private Transaction CreateTransaction(
+        ReadOnlyMemory<byte> data,
+        TransactionType transactionType)
+    {
+        var transaction = new Transaction(15_000, WriteAheadLog)
+        {
+            Type = transactionType,
+            Data = data,
+            TransactionSequenceNumber =
+                Interlocked.Increment(ref _transactionSequence)
+        };
+
+        return transaction;
+    }
+
+    private void FlushToDisk()
+    {
+        WriteAheadLog.FlushToDisk();
     }
 
     private async Task OnStartingAsync()
@@ -107,8 +137,9 @@ public sealed class Database : IDisposable
 
         _flushTransactionsToDataPagesTask =
             Task.Factory.StartNew(() =>
-                _storageEnvironment.WriteAheadLog.FlushBuffer(
-                    _shutdownTokenSource.Token), TaskCreationOptions.LongRunning);
+                    WriteAheadLog.FlushBuffer(
+                        _shutdownTokenSource.Token),
+                TaskCreationOptions.LongRunning);
 
         return _runningStateTask.Task;
     }
@@ -146,8 +177,8 @@ public sealed class Database : IDisposable
             ConfigureAwaitOptions.SuppressThrowing);
 
         Console.WriteLine("journal fsync");
-        _storageEnvironment.FlushToDisk();
-        _storageEnvironment.WriteAheadLog.Dispose();
+        FlushToDisk();
+        WriteAheadLog.Dispose();
     }
 
     private Task OnStoppedAsync()

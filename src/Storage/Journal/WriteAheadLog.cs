@@ -5,17 +5,18 @@ public sealed class WriteAheadLog : IDisposable
     private readonly WriteAheadLogTransactionBuffer _buffer = new();
     private ulong _storageTransactionSequence;
 
-    public WriteAheadLog()
+    public WriteAheadLog(bool inMemory)
     {
-        File.Delete("journal.txt");
-        WriteAheadLogFile = WriteAheadLogFile.Open("journal.txt");
+        LogFile = inMemory
+            ? new NullWriteAheadLogFile()
+            : WriteAheadLogFile.Open("journal.txt");
     }
 
-    public WriteAheadLogFile WriteAheadLogFile { get; }
+    public IWriteAheadLogFile LogFile { get; }
 
     public void Dispose()
     {
-        WriteAheadLogFile.Dispose();
+        (LogFile as IDisposable)?.Dispose();
     }
 
     public Task AppendAsync(Transaction transaction)
@@ -27,26 +28,29 @@ public sealed class WriteAheadLog : IDisposable
 
     public void FlushBuffer(CancellationToken cancellationToken)
     {
-        while (true)
+        while (!cancellationToken.IsCancellationRequested)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
             _buffer.WaitForTransactions(cancellationToken);
 
-            var transactionNumber = Interlocked.Increment(ref _storageTransactionSequence);
+            var transactionNumber =
+                Interlocked.Increment(ref _storageTransactionSequence);
 
             var storageTransaction = new StorageTransaction(
                 transactionNumber: transactionNumber,
-                WriteAheadLogFile,
+                LogFile,
                 _buffer);
 
             cancellationToken.ThrowIfCancellationRequested();
             storageTransaction.Commit(cancellationToken);
         }
+        
+        cancellationToken.ThrowIfCancellationRequested();
     }
 
     public void FlushToDisk()
     {
-        WriteAheadLogFile.FlushToDisk();
+        LogFile.FlushToDisk();
     }
 }

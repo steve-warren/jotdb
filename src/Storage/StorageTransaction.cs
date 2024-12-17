@@ -11,14 +11,14 @@ namespace JotDB.Storage;
 /// This class is responsible for managing the lifecycle of a transaction, including committing
 /// the associated write-ahead log transactions to storage and handling any necessary cleanup during disposal.
 /// </remarks>
-public sealed class StorageTransaction : IDisposable
+public sealed class StorageTransaction
 {
-    private readonly WriteAheadLogFile _writeAheadLogFile;
+    private readonly IWriteAheadLogFile _writeAheadLogFile;
     private readonly WriteAheadLogTransactionBuffer _transactionBuffer;
 
     public StorageTransaction(
         ulong transactionNumber,
-        WriteAheadLogFile writeAheadLogFile,
+        IWriteAheadLogFile writeAheadLogFile,
         WriteAheadLogTransactionBuffer transactionBuffer)
     {
         TransactionNumber = transactionNumber;
@@ -27,6 +27,7 @@ public sealed class StorageTransaction : IDisposable
     }
 
     public ulong TransactionNumber { get; }
+    public TimeSpan ExecutionTime { get; private set; }
 
     /// <summary>
     /// Commits the current storage transaction asynchronously.
@@ -68,11 +69,7 @@ public sealed class StorageTransaction : IDisposable
 
             writer.ZeroUnusedBytes();
 
-            //_writeAheadLogFile.WriteToDisk(memory);
-            Thread.Sleep(TimeSpan.FromMilliseconds(0.01));
-
-            Console.WriteLine(
-                $"strx {TransactionNumber} committed {writer.BytesWritten} bytes from {commitSequenceNumber} trx in {watch.Elapsed.TotalMilliseconds} ms");
+            _writeAheadLogFile.WriteToDisk(memory);
         }
 
         finally
@@ -80,10 +77,8 @@ public sealed class StorageTransaction : IDisposable
             commitAwaiter.SignalCompletion();
 
             AlignedMemoryPool.Default.Return(memory);
-        }
-    }
 
-    public void Dispose()
-    {
+            ExecutionTime = watch.Elapsed;
+        }
     }
 }
