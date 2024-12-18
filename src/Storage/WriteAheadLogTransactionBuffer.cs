@@ -39,8 +39,7 @@ public sealed class WriteAheadLogTransactionBuffer : IDisposable
         _transactionsAvailable.Wait(cancellationToken);
     }
 
-    public IEnumerable<WriteAheadLogTransaction>
-        ReadTransactions(
+    public IEnumerable<WriteAheadLogTransaction> ReadTransactions(
             int bytes,
             CancellationToken cancellationToken)
     {
@@ -74,7 +73,7 @@ public sealed class WriteAheadLogTransactionBuffer : IDisposable
 
     public void Dispose()
     {
-        Debug.Assert(_queue.Count is 0, "WAL transactions are still pending in the buffer when calling Dispose().");
+        Debug.Assert(_queue.IsEmpty, "WAL transactions are still pending in the buffer when calling Dispose().");
         _transactionsAvailable.Dispose();
 
         GC.SuppressFinalize(this);

@@ -45,7 +45,7 @@ public sealed class WriteAheadLog : IDisposable
             cancellationToken.ThrowIfCancellationRequested();
             storageTransaction.Commit(cancellationToken);
         }
-        
+
         cancellationToken.ThrowIfCancellationRequested();
     }
 

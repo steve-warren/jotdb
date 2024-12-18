@@ -23,7 +23,7 @@ public struct AlignedMemoryWriter(AlignedMemory memory, int bytesWritten = 0)
         BytesWritten += buffer.Length;
     }
 
-    public readonly void ZeroUnusedBytes() =>
+    public readonly void ZeroRemainingBytes() =>
         Memory.Span[BytesWritten..].Clear();
 
     public void Reset() =>

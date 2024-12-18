@@ -56,7 +56,6 @@ public sealed class StorageTransaction
                         ref writer,
                         ++commitSequenceNumber,
                         DateTime.UtcNow.Ticks))
-
                     transaction.Commit(after: commitAwaiter.Task);
 
                 else if (transaction.Size > memory.Size)
@@ -67,7 +66,7 @@ public sealed class StorageTransaction
             if (writer.BytesWritten == 0)
                 return;
 
-            writer.ZeroUnusedBytes();
+            writer.ZeroRemainingBytes();
 
             _writeAheadLogFile.WriteToDisk(memory);
         }
