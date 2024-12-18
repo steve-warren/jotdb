@@ -33,8 +33,8 @@ public sealed class Database : IDisposable
 
     public async Task InsertDocumentAsync(ReadOnlyMemory<byte> document)
     {
-        using var transaction =
-            CreateTransaction(document, TransactionType.Write);
+        using var transaction = CreateTransaction();
+        transaction.AddOperation(document, DatabaseOperationType.Insert);
         await transaction.CommitAsync().ConfigureAwait(false);
         _ema.Update(transaction.ExecutionTime);
     }
@@ -66,14 +66,10 @@ public sealed class Database : IDisposable
         WriteAheadLog.Dispose();
     }
 
-    private DatabaseTransaction CreateTransaction(
-        ReadOnlyMemory<byte> data,
-        TransactionType transactionType)
+    public DatabaseTransaction CreateTransaction()
     {
         var transaction = new DatabaseTransaction(15_000, WriteAheadLog)
         {
-            Type = transactionType,
-            Data = data,
             TransactionSequenceNumber =
                 Interlocked.Increment(ref _transactionSequence)
         };
