@@ -1,7 +1,8 @@
 using System.Diagnostics;
+using JotDB.Storage;
 using JotDB.Storage.Journal;
 
-namespace JotDB.Storage;
+namespace JotDB;
 
 /// <summary>
 /// Represents a transactional operation within the system.

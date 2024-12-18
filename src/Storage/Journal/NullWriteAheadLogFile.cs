@@ -1,6 +1,6 @@
 using JotDB.Memory;
 
-namespace JotDB.Storage;
+namespace JotDB.Storage.Journal;
 
 public class NullWriteAheadLogFile(
     double flushTimeoutInMilliseconds = 50,

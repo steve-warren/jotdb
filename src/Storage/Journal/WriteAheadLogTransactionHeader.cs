@@ -1,7 +1,7 @@
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
-namespace JotDB.Storage;
+namespace JotDB.Storage.Journal;
 
 [StructLayout(LayoutKind.Explicit, Pack = 1)]
 public ref struct WriteAheadLogTransactionHeader

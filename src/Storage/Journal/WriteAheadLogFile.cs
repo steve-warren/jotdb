@@ -4,7 +4,7 @@ using JotDB.Memory;
 using JotDB.Platform.MacOS;
 using Microsoft.Win32.SafeHandles;
 
-namespace JotDB.Storage;
+namespace JotDB.Storage.Journal;
 
 public sealed class WriteAheadLogFile : IDisposable, IWriteAheadLogFile
 {

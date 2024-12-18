@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using JotDB.Memory;
+using JotDB.Storage.Journal;
 using JotDB.Threading;
 
 namespace JotDB.Storage;

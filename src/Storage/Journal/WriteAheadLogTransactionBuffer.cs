@@ -1,10 +1,7 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
-using System.Runtime.CompilerServices;
-using System.Threading.Channels;
-using JotDB.Storage.Journal;
 
-namespace JotDB.Storage;
+namespace JotDB.Storage.Journal;
 
 /// <summary>
 /// Provides a buffering mechanism for handling write-ahead log transactions in a bounded, thread-safe manner.
