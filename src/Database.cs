@@ -20,7 +20,7 @@ public sealed class Database : IDisposable
     }
 
     public DatabaseState State => _state;
-    public double AverageTransactionExecutionTime => _ema.Value;
+    public TimeSpan AverageTransactionExecutionTime => _ema.Value;
     public WriteAheadLog WriteAheadLog { get; }
 
     public void AddBackgroundWorker(
@@ -34,10 +34,9 @@ public sealed class Database : IDisposable
     public async Task InsertDocumentAsync(ReadOnlyMemory<byte> document)
     {
         using var transaction =
-            CreateTransaction(document,
-                TransactionType.Insert);
+            CreateTransaction(document, TransactionType.Write);
         await transaction.CommitAsync().ConfigureAwait(false);
-        _ema.Update(transaction.ExecutionTime.TotalMilliseconds);
+        _ema.Update(transaction.ExecutionTime);
     }
 
     /// <summary>
@@ -67,11 +66,11 @@ public sealed class Database : IDisposable
         WriteAheadLog.Dispose();
     }
 
-    private Transaction CreateTransaction(
+    private DatabaseTransaction CreateTransaction(
         ReadOnlyMemory<byte> data,
         TransactionType transactionType)
     {
-        var transaction = new Transaction(15_000, WriteAheadLog)
+        var transaction = new DatabaseTransaction(15_000, WriteAheadLog)
         {
             Type = transactionType,
             Data = data,

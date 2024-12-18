@@ -25,17 +25,17 @@ public sealed class WriteAheadLogTransaction
     /// within the context of a write-ahead log. The transaction can wait for commit signals, be aborted with an exception,
     /// or commit after the completion of a specific task.
     /// </remarks>
-    public WriteAheadLogTransaction(Transaction transaction)
+    public WriteAheadLogTransaction(DatabaseTransaction databaseTransaction)
     {
-        Transaction = transaction;
-        Size = (uint)WriteAheadLogTransactionHeader.Size + (uint)transaction
+        DatabaseTransaction = databaseTransaction;
+        Size = (uint)WriteAheadLogTransactionHeader.Size + (uint)databaseTransaction
             .Data.Length;
     }
 
     public uint Size { get; }
 
-    public Transaction Transaction { get; }
-    public ulong CommitSequenceNumber { get; private set; }
+    public DatabaseTransaction DatabaseTransaction { get; }
+    public uint CommitSequenceNumber { get; private set; }
 
     public Task WaitForCommitAsync()
     {
@@ -45,7 +45,7 @@ public sealed class WriteAheadLogTransaction
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public bool TryWrite(
         ref AlignedMemoryWriter writer,
-        ulong commitSequenceNumber,
+        uint commitSequenceNumber,
         long timestamp)
     {
         if (writer.BytesAvailable < Size)
@@ -55,16 +55,16 @@ public sealed class WriteAheadLogTransaction
 
         var header = new WriteAheadLogTransactionHeader
         {
-            DataLength = Transaction.Data.Length,
-            TransactionSequenceNumber = Transaction.TransactionSequenceNumber,
+            DataLength = DatabaseTransaction.Data.Length,
+            TransactionSequenceNumber = DatabaseTransaction.TransactionSequenceNumber,
             CommitSequenceNumber = commitSequenceNumber,
-            TransactionType = (int)Transaction.Type,
-            Hash = MD5.HashData(Transaction.Data.Span),
+            TransactionType = (int)DatabaseTransaction.Type,
+            Hash = MD5.HashData(DatabaseTransaction.Data.Span),
             Timestamp = timestamp
         };
 
         writer.Write(header);
-        writer.Write(Transaction.Data.Span);
+        writer.Write(DatabaseTransaction.Data.Span);
 
         return true;
     }

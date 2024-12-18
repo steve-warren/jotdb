@@ -18,10 +18,10 @@ public sealed class AlignedMemoryPool : IDisposable
     public int Capacity { get; }
     public HashSet<AlignedMemory> Rented { get; } = [];
 
-    public AlignedMemory Rent()
+    public AlignedMemory Rent(uint size = 4096)
     {
         var memory = _pool.Count == 0
-            ? AlignedMemory.Allocate(4096, 4096)
+            ? AlignedMemory.Allocate(size, 4096)
             : _pool.Pop();
 
         Rented.Add(memory);

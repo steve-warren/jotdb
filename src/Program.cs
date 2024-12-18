@@ -48,7 +48,7 @@ _ = Task.Run(() =>
     {
         Thread.Sleep(1000);
         Console.WriteLine($"{DateTime.Now} - {database
-            .AverageTransactionExecutionTime} ms");
+            .AverageTransactionExecutionTime.TotalMilliseconds} ms");
     }
 }, cts.Token);
 

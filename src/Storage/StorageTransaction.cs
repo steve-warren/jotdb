@@ -39,7 +39,7 @@ public sealed class StorageTransaction
     public void Commit(CancellationToken cancellationToken = default)
     {
         using var commitAwaiter = new AsyncAwaiter(cancellationToken);
-        var commitSequenceNumber = 0UL;
+        var commitSequenceNumber = 0U;
         var watch = Stopwatch.StartNew();
 
         var memory = AlignedMemoryPool.Default.Rent();

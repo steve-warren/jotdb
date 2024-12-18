@@ -10,12 +10,12 @@ namespace JotDB.Storage;
 /// A transaction encapsulates a series of operations that can be committed or rolled back as a single unit.
 /// Transactions are uniquely identified by their sequence numbers and can store associated data.
 /// </remarks>
-public sealed class Transaction : IDisposable
+public sealed class DatabaseTransaction : IDisposable
 {
     private readonly WriteAheadLog _wal;
     private readonly CancellationTokenSource _cts;
 
-    public Transaction(
+    public DatabaseTransaction(
         int timeout,
         WriteAheadLog wal)
     {

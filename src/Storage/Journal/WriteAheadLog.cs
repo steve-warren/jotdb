@@ -19,9 +19,9 @@ public sealed class WriteAheadLog : IDisposable
         (LogFile as IDisposable)?.Dispose();
     }
 
-    public Task AppendAsync(Transaction transaction)
+    public Task AppendAsync(DatabaseTransaction databaseTransaction)
     {
-        var walTransaction = new WriteAheadLogTransaction(transaction);
+        var walTransaction = new WriteAheadLogTransaction(databaseTransaction);
 
         return _buffer.WriteTransactionAsync(walTransaction);
     }

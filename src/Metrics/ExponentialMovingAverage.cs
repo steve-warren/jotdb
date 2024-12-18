@@ -3,32 +3,39 @@ namespace JotDB.Metrics;
 public struct ExponentialMovingAverage
 {
     private readonly double _alpha = 0.2;
-    private double? _ema;
-    private readonly Lock _lock = new();
+
+    // The first few EMA values are slightly influenced by the chosen seed of 0.
+    // However, as updates accumulate, the EMA’s memory of this initial seed
+    // fades exponentially, mitigating the initial skew.
+    //
+    // This is to eliminate seeding the initial EMA value from the
+    // Update() method.
+    private long _ema;
 
     public ExponentialMovingAverage(double alpha)
     {
         _alpha = Math.Clamp(alpha, 0.0, 1.0);
     }
 
-    public void Update(double sample)
+    public void Update(TimeSpan sample)
     {
-        lock (_lock)
+        long ema, updatedEma;
+
+        do
         {
-            _ema = _ema is null
-                ? sample
-                : _alpha * sample + (1 - _alpha) * _ema;
-        }
+            ema = Volatile.Read(ref _ema);
+            updatedEma =
+                (long)(_alpha * sample.Ticks + (1 - _alpha) * ema);
+        } while (Interlocked.CompareExchange(
+                     ref _ema, updatedEma, ema) != ema);
     }
 
-    public readonly double Value
+    public TimeSpan Value
     {
         get
         {
-            lock (_lock)
-            {
-                return _ema.GetValueOrDefault();
-            }
+            var ema = Volatile.Read(ref _ema);
+            return TimeSpan.FromTicks(ema);
         }
     }
 }
