@@ -10,7 +10,6 @@ public sealed class Database : IDisposable
     private readonly TaskCompletionSource _runningStateTask = new();
     private volatile DatabaseState _state = DatabaseState.Stopped;
     private readonly CancellationTokenSource _shutdownTokenSource = new();
-    private Task _flushTransactionsToDataPagesTask = Task.CompletedTask;
     private ExponentialMovingAverage _ema = new(0.2);
     private ulong _transactionSequence;
 
@@ -31,7 +30,8 @@ public sealed class Database : IDisposable
         _backgroundWorkers.Add(worker);
     }
 
-    public async Task InsertDocumentAsync(params ReadOnlyMemory<byte>[] documents)
+    public async Task InsertDocumentAsync(
+        params ReadOnlyMemory<byte>[] documents)
     {
         using var transaction = CreateTransaction();
 
@@ -133,11 +133,28 @@ public sealed class Database : IDisposable
 
         Console.WriteLine("running database");
 
-        _flushTransactionsToDataPagesTask =
-            Task.Factory.StartNew(() =>
-                    WriteAheadLog.FlushBuffer(
-                        _shutdownTokenSource.Token),
-                TaskCreationOptions.LongRunning);
+        var wal = WriteAheadLog;
+        var token = _shutdownTokenSource.Token;
+
+        var flushTransactionThread = new Thread(() =>
+        {
+            Console.WriteLine("starting flush transaction thread.");
+
+            try
+            {
+                wal.FlushBuffer(token);
+            }
+
+            catch (OperationCanceledException)
+            {
+                Console.WriteLine("flush transaction thread canceled.");
+            }
+        })
+        {
+            Priority = ThreadPriority.Highest
+        };
+
+        flushTransactionThread.Start();
 
         return _runningStateTask.Task;
     }
@@ -170,9 +187,6 @@ public sealed class Database : IDisposable
                     $"stopped background worker '{worker.Name}' but an unhandled exception occurred: {ex}");
             }
         }
-
-        await _flushTransactionsToDataPagesTask.ConfigureAwait(
-            ConfigureAwaitOptions.SuppressThrowing);
 
         Console.WriteLine("journal fsync");
         FlushToDisk();

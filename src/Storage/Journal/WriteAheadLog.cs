@@ -30,8 +30,6 @@ public sealed class WriteAheadLog : IDisposable
     {
         while (!cancellationToken.IsCancellationRequested)
         {
-            cancellationToken.ThrowIfCancellationRequested();
-
             _buffer.WaitForTransactions(cancellationToken);
 
             var transactionNumber =
@@ -42,11 +40,8 @@ public sealed class WriteAheadLog : IDisposable
                 LogFile,
                 _buffer);
 
-            cancellationToken.ThrowIfCancellationRequested();
             storageTransaction.Commit(cancellationToken);
         }
-
-        cancellationToken.ThrowIfCancellationRequested();
     }
 
     public void FlushToDisk()

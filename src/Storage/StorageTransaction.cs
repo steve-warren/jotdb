@@ -32,12 +32,11 @@ public sealed class StorageTransaction
     public TimeSpan ExecutionTime { get; private set; }
 
     /// <summary>
-    /// Commits the current storage transaction asynchronously.
+    /// Commits the current storage transaction.
     /// This method ensures that all pending operations in the transaction buffer are written
     /// to storage and properly handled before signaling completion.
     /// </summary>
     /// <param name="cancellationToken">A token to observe while waiting for the task to complete.</param>
-    /// <returns>A task that represents the asynchronous commit operation.</returns>
     public void Commit(CancellationToken cancellationToken = default)
     {
         using var commitAwaiter = new AsyncAwaiter(cancellationToken);
