@@ -17,7 +17,7 @@ public struct ExponentialMovingAverage
         _alpha = Math.Clamp(alpha, 0.0, 1.0);
     }
 
-    public void Update(TimeSpan sample)
+    public void Update(long sample)
     {
         long ema, updatedEma;
 
@@ -25,17 +25,19 @@ public struct ExponentialMovingAverage
         {
             ema = Volatile.Read(ref _ema);
             updatedEma =
-                (long)(_alpha * sample.Ticks + (1 - _alpha) * ema);
+                (long)(_alpha * sample + (1 - _alpha) * ema);
         } while (Interlocked.CompareExchange(
                      ref _ema, updatedEma, ema) != ema);
     }
 
-    public TimeSpan Value
+    public TimeSpan ReadTimeSpan()
     {
-        get
-        {
-            var ema = Volatile.Read(ref _ema);
-            return TimeSpan.FromTicks(ema);
-        }
+        var ema = Volatile.Read(ref _ema);
+        return TimeSpan.FromTicks(ema);
+    }
+
+    public long ReadLong()
+    {
+        return Volatile.Read(ref _ema);
     }
 }

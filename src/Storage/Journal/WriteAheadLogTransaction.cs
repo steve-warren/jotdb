@@ -28,8 +28,10 @@ public sealed class WriteAheadLogTransaction
     public WriteAheadLogTransaction(DatabaseTransaction databaseTransaction)
     {
         DatabaseTransaction = databaseTransaction;
-        Size = (uint)WriteAheadLogTransactionHeader.Size + (uint)databaseTransaction
-            .Data.Length;
+        Size = (uint)WriteAheadLogTransactionHeader.Size *
+               databaseTransaction.OperationCount +
+               databaseTransaction
+                   .Size;
     }
 
     public uint Size { get; }
@@ -55,16 +57,21 @@ public sealed class WriteAheadLogTransaction
 
         var header = new WriteAheadLogTransactionHeader
         {
-            DataLength = DatabaseTransaction.Data.Length,
-            TransactionSequenceNumber = DatabaseTransaction.TransactionSequenceNumber,
+            TransactionSequenceNumber =
+                DatabaseTransaction.TransactionSequenceNumber,
             CommitSequenceNumber = commitSequenceNumber,
             TransactionType = (int)DatabaseTransaction.Type,
-            Hash = MD5.HashData(DatabaseTransaction.Data.Span),
             Timestamp = timestamp
         };
 
-        writer.Write(header);
-        writer.Write(DatabaseTransaction.Data.Span);
+        foreach (var operation in DatabaseTransaction.Operations)
+        {
+            var span = operation.Data.Span;
+            header.DataLength = operation.Data.Length;
+            header.Hash = MD5.HashData(span);
+            writer.Write(header);
+            writer.Write(span);
+        }
 
         return true;
     }

@@ -20,7 +20,7 @@ public sealed class Database : IDisposable
     }
 
     public DatabaseState State => _state;
-    public TimeSpan AverageTransactionExecutionTime => _ema.Value;
+    public TimeSpan AverageTransactionExecutionTime => _ema.ReadTimeSpan();
     public WriteAheadLog WriteAheadLog { get; }
 
     public void AddBackgroundWorker(
@@ -31,12 +31,15 @@ public sealed class Database : IDisposable
         _backgroundWorkers.Add(worker);
     }
 
-    public async Task InsertDocumentAsync(ReadOnlyMemory<byte> document)
+    public async Task InsertDocumentAsync(params ReadOnlyMemory<byte>[] documents)
     {
         using var transaction = CreateTransaction();
-        transaction.AddOperation(document, DatabaseOperationType.Insert);
+
+        foreach (var document in documents)
+            transaction.AddOperation(document, DatabaseOperationType.Insert);
+
         await transaction.CommitAsync().ConfigureAwait(false);
-        _ema.Update(transaction.ExecutionTime);
+        _ema.Update(transaction.ExecutionTime.Ticks);
     }
 
     /// <summary>

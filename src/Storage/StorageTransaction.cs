@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using JotDB.Memory;
+using JotDB.Metrics;
 using JotDB.Storage.Journal;
 using JotDB.Threading;
 
@@ -41,7 +42,7 @@ public sealed class StorageTransaction
     {
         using var commitAwaiter = new AsyncAwaiter(cancellationToken);
         var commitSequenceNumber = 0U;
-        var watch = Stopwatch.StartNew();
+        var watch = StopwatchSlim.StartNew();
 
         var memory = AlignedMemoryPool.Default.Rent();
         var writer = new AlignedMemoryWriter(memory);

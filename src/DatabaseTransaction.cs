@@ -30,6 +30,9 @@ public sealed class DatabaseTransaction : IDisposable
     public ReadOnlyMemory<byte> Data { get; set; }
     public TransactionType Type { get; set; }
     public TimeSpan ExecutionTime { get; private set; }
+    public uint Size { get; private set; }
+    public uint OperationCount { get; private set; }
+    public IEnumerable<DatabaseOperation> Operations => _operations;
 
     public DatabaseOperation AddOperation(
         ReadOnlyMemory<byte> data,
@@ -42,6 +45,9 @@ public sealed class DatabaseTransaction : IDisposable
             type);
 
         _operations.Add(operation);
+
+        Size += (uint)data.Length;
+        OperationCount++;
 
         return operation;
     }

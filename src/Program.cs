@@ -54,13 +54,10 @@ _ = Task.Run(() =>
 
 while (!cts.IsCancellationRequested)
 {
-    for (var i = 0; i < Environment.ProcessorCount; i++)
+    for (var i = 0; i < 1; i++)
     {
         _ = Task.WhenAll(
-            database.InsertDocumentAsync(data),
-            database.InsertDocumentAsync(data),
-            database.InsertDocumentAsync(data),
-            database.InsertDocumentAsync(data));
+            database.InsertDocumentAsync(data, data, data));
     }
 
     Thread.Sleep(100);
