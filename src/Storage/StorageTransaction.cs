@@ -47,10 +47,12 @@ public sealed class StorageTransaction
 
         try
         {
-            foreach (var transaction in _transactionBuffer
-                         .ReadTransactions(
-                             4096,
-                             cancellationToken))
+            var enumerator = new WriteAheadLogTransactionBuffer.Enumerator(
+                _transactionBuffer,
+                4096,
+                cancellationToken);
+
+            while(enumerator.MoveNext(out var transaction))
             {
                 if (transaction.TryWrite(
                         ref writer,

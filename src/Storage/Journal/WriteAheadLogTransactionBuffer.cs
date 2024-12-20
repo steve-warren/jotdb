@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 
 namespace JotDB.Storage.Journal;
 
@@ -36,9 +37,9 @@ public sealed class WriteAheadLogTransactionBuffer : IDisposable
         _transactionsAvailable.Wait(cancellationToken);
     }
 
-    public IEnumerable<WriteAheadLogTransaction> ReadTransactions(
-            int bytes,
-            CancellationToken cancellationToken)
+    public IEnumerable<WriteAheadLogTransaction> ReadTransactionsEnumerable(
+        int bytes,
+        CancellationToken cancellationToken)
     {
         var totalBytes = 0U;
 
@@ -70,9 +71,57 @@ public sealed class WriteAheadLogTransactionBuffer : IDisposable
 
     public void Dispose()
     {
-        Debug.Assert(_queue.IsEmpty, "WAL transactions are still pending in the buffer when calling Dispose().");
+        Debug.Assert(_queue.IsEmpty,
+            "WAL transactions are still pending in the buffer when calling Dispose().");
         _transactionsAvailable.Dispose();
 
         GC.SuppressFinalize(this);
+    }
+
+    /// <summary>
+    /// Represents an enumerator for iterating over transactions in the WriteAheadLogTransactionBuffer
+    /// while respecting a specified byte limit and handling cancellation tokens.
+    /// </summary>
+    /// <remarks>
+    /// This struct provides a mechanism to sequentially process transactions stored in the WriteAheadLogTransactionBuffer
+    /// while enforcing a maximum byte limit for the transactions to be retrieved. The enumerator also supports canceling
+    /// the iteration process through a CancellationToken to ensure responsiveness to cancellation requests.
+    /// </remarks>
+    /// <threadsafety>
+    /// This struct is not thread-safe and should not be accessed concurrently from multiple threads.
+    /// </threadsafety>
+    /// <seealso cref="WriteAheadLogTransactionBuffer" />
+    /// <seealso cref="JotDB.Storage.Journal.WriteAheadLogTransaction" />
+    public ref struct Enumerator
+    {
+        private readonly WriteAheadLogTransactionBuffer _buffer;
+        private readonly CancellationToken _cancellationToken;
+        private readonly int _bytes;
+        private uint _totalBytes = 0U;
+
+        public Enumerator(
+            WriteAheadLogTransactionBuffer buffer,
+            int bytes,
+            CancellationToken cancellationToken)
+        {
+            _buffer = buffer;
+            _bytes = bytes;
+            _cancellationToken = cancellationToken;
+        }
+
+        public bool MoveNext(
+            [MaybeNullWhen(false)] out WriteAheadLogTransaction transaction)
+        {
+            _cancellationToken.ThrowIfCancellationRequested();
+
+            if (!_buffer._queue.TryPeek(out transaction)) return false;
+
+            if (_totalBytes + transaction.Size > _bytes) return false;
+
+            _buffer._queue.TryDequeue(out _);
+            _totalBytes += transaction.Size;
+
+            return true;
+        }
     }
 }

@@ -1,6 +1,6 @@
 ﻿using JotDB;
 
-using var database = new Database();
+using var database = new Database(inMemory: true);
 var run = database.RunAsync();
 var cts = new CancellationTokenSource();
 

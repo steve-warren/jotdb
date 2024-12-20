@@ -72,6 +72,5 @@ public sealed class WriteAheadLogFile : IDisposable, IWriteAheadLogFile
     {
         RandomAccess.Write(_fileHandle, memory.Span, _offset);
         _offset += memory.Size;
-        Console.WriteLine($"Wrote {memory.Size} bytes to disk.");
     }
 }
