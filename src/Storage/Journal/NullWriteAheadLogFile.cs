@@ -4,7 +4,7 @@ namespace JotDB.Storage.Journal;
 
 public class NullWriteAheadLogFile(
     double flushTimeoutInMilliseconds = 50,
-    double writeTimeoutInMilliseconds = 1) : IWriteAheadLogFile
+    double writeTimeoutInMilliseconds = 0.02) : IWriteAheadLogFile
 {
     public void FlushToDisk()
     {

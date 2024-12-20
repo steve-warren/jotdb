@@ -68,7 +68,7 @@ public sealed class StorageTransaction
 
             writer.ZeroRemainingBytes();
 
-            //_writeAheadLogFile.WriteToDisk(memory);
+            _writeAheadLogFile.WriteToDisk(memory);
             ExecutionTime = watch.Elapsed;
         }
 
