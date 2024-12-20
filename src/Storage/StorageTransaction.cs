@@ -51,13 +51,15 @@ public sealed class StorageTransaction
                 _transactionBuffer,
                 4096,
                 cancellationToken);
+            
+            var timestamp = DateTime.UtcNow.Ticks;
 
             while(enumerator.MoveNext(out var transaction))
             {
-                if (transaction.TryWrite(
+                if (transaction.TryWriteToMemory(
                         ref writer,
                         ++commitSequenceNumber,
-                        DateTime.UtcNow.Ticks))
+                        timestamp))
                     transaction.Commit(after: commitAwaiter.Task);
 
                 else if (transaction.Size > memory.Size)

@@ -69,7 +69,7 @@ public sealed class Database : IDisposable
         WriteAheadLog.Dispose();
     }
 
-    public DatabaseTransaction CreateTransaction()
+    private DatabaseTransaction CreateTransaction()
     {
         var transaction = new DatabaseTransaction(15_000, WriteAheadLog)
         {
@@ -142,7 +142,7 @@ public sealed class Database : IDisposable
 
             try
             {
-                wal.FlushBuffer(token);
+                wal.WaitAndCommitBufferUntil(token);
             }
 
             catch (OperationCanceledException)

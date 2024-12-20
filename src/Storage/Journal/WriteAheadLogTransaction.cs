@@ -39,13 +39,13 @@ public sealed class WriteAheadLogTransaction
     public DatabaseTransaction DatabaseTransaction { get; }
     public uint CommitSequenceNumber { get; private set; }
 
-    public Task WaitForCommitAsync()
+    public Task WaitUntilCommitAsync()
     {
         return _awaiter.WaitForSignalAsync();
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public bool TryWrite(
+    public bool TryWriteToMemory(
         ref AlignedMemoryWriter writer,
         uint commitSequenceNumber,
         long timestamp)

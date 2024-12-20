@@ -32,41 +32,16 @@ public sealed class WriteAheadLogTransactionBuffer : IDisposable
         Dispose();
     }
 
-    public void WaitForTransactions(CancellationToken cancellationToken)
+    public void Wait(CancellationToken cancellationToken)
     {
         _transactionsAvailable.Wait(cancellationToken);
     }
 
-    public IEnumerable<WriteAheadLogTransaction> ReadTransactionsEnumerable(
-        int bytes,
-        CancellationToken cancellationToken)
-    {
-        var totalBytes = 0U;
-
-        cancellationToken.ThrowIfCancellationRequested();
-
-        while (_queue.TryPeek(out var transaction))
-        {
-            Debug.Assert(transaction.Size <= bytes,
-                "Transaction size exceeds buffer size.");
-
-            if (totalBytes + transaction.Size > bytes)
-                yield break;
-
-            _queue.TryDequeue(out _);
-            totalBytes += transaction.Size;
-
-            yield return transaction;
-        }
-
-        _transactionsAvailable.Reset();
-    }
-
-    public Task WriteTransactionAsync(WriteAheadLogTransaction transaction)
+    public Task WriteAsync(WriteAheadLogTransaction transaction)
     {
         _queue.Enqueue(transaction);
         _transactionsAvailable.Set();
-        return transaction.WaitForCommitAsync();
+        return transaction.WaitUntilCommitAsync();
     }
 
     public void Dispose()

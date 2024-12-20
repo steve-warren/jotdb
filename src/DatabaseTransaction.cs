@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using JotDB.Pages;
 using JotDB.Storage;
 using JotDB.Storage.Journal;
 
@@ -14,6 +15,7 @@ namespace JotDB;
 public sealed class DatabaseTransaction : IDisposable
 {
     private readonly WriteAheadLog _wal;
+    private readonly PageBuffer _pageBuffer = new();
     private readonly CancellationTokenSource _cts;
     private readonly HashSet<DatabaseOperation> _operations = [];
     private uint _operationSequenceNumber = 0;
@@ -56,6 +58,7 @@ public sealed class DatabaseTransaction : IDisposable
     {
         var watch = Stopwatch.StartNew();
         await _wal.AppendAsync(this).ConfigureAwait(false);
+        _pageBuffer.Write(this);
         ExecutionTime = watch.Elapsed;
     }
 

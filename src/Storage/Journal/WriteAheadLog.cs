@@ -23,14 +23,21 @@ public sealed class WriteAheadLog : IDisposable
     {
         var walTransaction = new WriteAheadLogTransaction(databaseTransaction);
 
-        return _buffer.WriteTransactionAsync(walTransaction);
+        return _buffer.WriteAsync(walTransaction);
     }
 
-    public void FlushBuffer(CancellationToken cancellationToken)
+    /// <summary>
+    /// Waits for transactions to be available in the transaction buffer and processes them
+    /// by committing each as a storage transaction. This method continues processing until
+    /// the provided cancellation token requests cancellation.
+    /// </summary>
+    /// <param name="cancellationToken">A token that can be used to signal the request for
+    /// cancellation of the waiting and flushing operation.</param>
+    public void WaitAndCommitBufferUntil(CancellationToken cancellationToken)
     {
         while (!cancellationToken.IsCancellationRequested)
         {
-            _buffer.WaitForTransactions(cancellationToken);
+            _buffer.Wait(cancellationToken);
 
             var transactionNumber =
                 Interlocked.Increment(ref _storageTransactionSequence);
