@@ -138,7 +138,7 @@ public sealed class Database : IDisposable
 
         var flushTransactionThread = new Thread(() =>
         {
-            Console.WriteLine("starting flush transaction thread.");
+            Console.WriteLine($"starting flush transaction thread.");
 
             try
             {
@@ -151,7 +151,8 @@ public sealed class Database : IDisposable
             }
         })
         {
-            Priority = ThreadPriority.Highest
+            Priority = ThreadPriority.Highest,
+            Name = "Flush Transaction Thread"
         };
 
         flushTransactionThread.Start();

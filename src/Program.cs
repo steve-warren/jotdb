@@ -57,7 +57,7 @@ while (!cts.IsCancellationRequested)
     for (var i = 0; i < 1; i++)
     {
         _ = Task.WhenAll(
-            database.InsertDocumentAsync(data, data, data));
+            database.InsertDocumentAsync(data));
     }
 
     Thread.Sleep(100);

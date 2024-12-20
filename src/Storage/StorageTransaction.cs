@@ -41,10 +41,9 @@ public sealed class StorageTransaction
     {
         using var commitAwaiter = new AsyncAwaiter(cancellationToken);
         var commitSequenceNumber = 0U;
-        var watch = StopwatchSlim.StartNew();
-
         var memory = AlignedMemoryPool.Default.Rent();
         var writer = new AlignedMemoryWriter(memory);
+        var watch = StopwatchSlim.StartNew();
 
         try
         {
@@ -69,7 +68,8 @@ public sealed class StorageTransaction
 
             writer.ZeroRemainingBytes();
 
-            _writeAheadLogFile.WriteToDisk(memory);
+            //_writeAheadLogFile.WriteToDisk(memory);
+            ExecutionTime = watch.Elapsed;
         }
 
         finally
@@ -77,8 +77,6 @@ public sealed class StorageTransaction
             commitAwaiter.SignalCompletion();
 
             AlignedMemoryPool.Default.Return(memory);
-
-            ExecutionTime = watch.Elapsed;
         }
     }
 }
