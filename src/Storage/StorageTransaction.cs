@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Transactions;
 using JotDB.Memory;
 using JotDB.Metrics;
 using JotDB.Storage.Journal;
@@ -43,26 +44,24 @@ public sealed class StorageTransaction
         var commitSequenceNumber = 0U;
         var memory = AlignedMemoryPool.Default.Rent();
         var writer = new AlignedMemoryWriter(memory);
-        var watch = StopwatchSlim.StartNew();
 
         try
         {
-            var enumerator = new WriteAheadLogTransactionBuffer.Enumerator(
+            var watch = StopwatchSlim.StartNew();
+            using var enumerator = new WriteAheadLogTransactionBuffer.Enumerator(
                 _transactionBuffer,
                 4096,
                 cancellationToken);
 
-            while(enumerator.MoveNext(out var transaction))
-            {
-                if (transaction.TryWrite(
-                        ref writer,
-                        ++commitSequenceNumber,
-                        DateTime.UtcNow.Ticks))
-                    transaction.Commit(after: commitAwaiter.Task);
+            var transaction = default(WriteAheadLogTransaction);
 
-                else if (transaction.Size > memory.Size)
-                    transaction.Abort(
-                        new Exception("Data would be truncated."));
+            while (enumerator.MoveNext(out transaction))
+            {
+                transaction.Write(
+                    ref writer,
+                    ++commitSequenceNumber,
+                    DateTime.UtcNow.Ticks);
+                transaction.Commit(after: commitAwaiter.Task);
             }
 
             if (writer.BytesWritten == 0)

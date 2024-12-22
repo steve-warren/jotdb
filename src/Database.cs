@@ -10,7 +10,7 @@ public sealed class Database : IDisposable
     private readonly TaskCompletionSource _runningStateTask = new();
     private volatile DatabaseState _state = DatabaseState.Stopped;
     private readonly CancellationTokenSource _shutdownTokenSource = new();
-    private ExponentialMovingAverage _ema = new(0.2);
+    private ExponentialMovingAverage _transactionExecutionTimes = new();
     private ulong _transactionSequence;
 
     public Database(bool inMemory = true)
@@ -19,8 +19,10 @@ public sealed class Database : IDisposable
     }
 
     public DatabaseState State => _state;
-    public TimeSpan AverageTransactionExecutionTime => _ema.ReadTimeSpan();
+    public TimeSpan AverageTransactionExecutionTime => _transactionExecutionTimes.ReadTimeSpan();
     public WriteAheadLog WriteAheadLog { get; }
+
+    public ulong TransactionSequenceNumber => Volatile.Read(ref _transactionSequence);
 
     public void AddBackgroundWorker(
         string name,
@@ -39,7 +41,7 @@ public sealed class Database : IDisposable
             transaction.AddOperation(document, DatabaseOperationType.Insert);
 
         await transaction.CommitAsync().ConfigureAwait(false);
-        _ema.Update(transaction.ExecutionTime.Ticks);
+        _transactionExecutionTimes.Update(transaction.ExecutionTime.Ticks);
     }
 
     /// <summary>
@@ -82,6 +84,7 @@ public sealed class Database : IDisposable
 
     private void FlushToDisk()
     {
+        Console.WriteLine("journal fsync");
         WriteAheadLog.FlushToDisk();
     }
 
@@ -189,7 +192,6 @@ public sealed class Database : IDisposable
             }
         }
 
-        Console.WriteLine("journal fsync");
         FlushToDisk();
         WriteAheadLog.Dispose();
     }

@@ -13,7 +13,7 @@ namespace JotDB.Storage.Journal;
 /// within the context of a write-ahead log. The transaction can wait for commit signals, be aborted with an exception,
 /// or commit after the completion of a specific task.
 /// </remarks>
-public sealed class WriteAheadLogTransaction
+public sealed class WriteAheadLogTransaction : IDisposable
 {
     private readonly AsyncAwaiter _awaiter = new();
 
@@ -34,10 +34,21 @@ public sealed class WriteAheadLogTransaction
                    .Size;
     }
 
-    public uint Size { get; }
+    ~WriteAheadLogTransaction()
+    {
+        Dispose();
+    }
 
+    public uint Size { get; }
     public DatabaseTransaction DatabaseTransaction { get; }
     public uint CommitSequenceNumber { get; private set; }
+
+    public void Dispose()
+    {
+        _awaiter.Dispose();
+
+        GC.SuppressFinalize(this);
+    }
 
     public Task WaitForCommitAsync()
     {
@@ -45,14 +56,11 @@ public sealed class WriteAheadLogTransaction
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public bool TryWrite(
+    public void Write(
         ref AlignedMemoryWriter writer,
         uint commitSequenceNumber,
         long timestamp)
     {
-        if (writer.BytesAvailable < Size)
-            return false;
-
         CommitSequenceNumber = commitSequenceNumber;
 
         var header = new WriteAheadLogTransactionHeader
@@ -72,13 +80,11 @@ public sealed class WriteAheadLogTransaction
             writer.Write(header);
             writer.Write(span);
         }
-
-        return true;
     }
 
-    public void Abort(Exception ex)
+    public void Abort(string message)
     {
-        _awaiter.SignalFault(ex);
+        _awaiter.SignalFault(new Exception(message));
     }
 
     public void Commit(Task after)

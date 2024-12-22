@@ -56,7 +56,7 @@ public sealed class AsyncAwaiter : IDisposable
     {
         var tcsLocal = _tcs;
 
-        after.ContinueWith((_, o) =>
+        _ = after.ContinueWith((_, o) =>
         {
             var tcs = (TaskCompletionSource)o;
             tcs.TrySetResult();

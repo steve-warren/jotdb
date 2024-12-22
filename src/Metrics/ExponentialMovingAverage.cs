@@ -12,6 +12,9 @@ public struct ExponentialMovingAverage
     // Update() method.
     private long _ema;
 
+    public ExponentialMovingAverage() =>
+        _alpha = 0.2D;
+
     public ExponentialMovingAverage(double alpha)
     {
         _alpha = Math.Clamp(alpha, 0.0, 1.0);

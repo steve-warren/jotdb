@@ -37,31 +37,6 @@ public sealed class WriteAheadLogTransactionBuffer : IDisposable
         _transactionsAvailable.Wait(cancellationToken);
     }
 
-    public IEnumerable<WriteAheadLogTransaction> ReadTransactionsEnumerable(
-        int bytes,
-        CancellationToken cancellationToken)
-    {
-        var totalBytes = 0U;
-
-        cancellationToken.ThrowIfCancellationRequested();
-
-        while (_queue.TryPeek(out var transaction))
-        {
-            Debug.Assert(transaction.Size <= bytes,
-                "Transaction size exceeds buffer size.");
-
-            if (totalBytes + transaction.Size > bytes)
-                yield break;
-
-            _queue.TryDequeue(out _);
-            totalBytes += transaction.Size;
-
-            yield return transaction;
-        }
-
-        _transactionsAvailable.Reset();
-    }
-
     public Task WriteTransactionAsync(WriteAheadLogTransaction transaction)
     {
         _queue.Enqueue(transaction);
@@ -98,6 +73,7 @@ public sealed class WriteAheadLogTransactionBuffer : IDisposable
         private readonly CancellationToken _cancellationToken;
         private readonly int _bytes;
         private uint _totalBytes = 0U;
+        private bool _disposed;
 
         public Enumerator(
             WriteAheadLogTransactionBuffer buffer,
@@ -107,6 +83,19 @@ public sealed class WriteAheadLogTransactionBuffer : IDisposable
             _buffer = buffer;
             _bytes = bytes;
             _cancellationToken = cancellationToken;
+        }
+
+        public void Dispose()
+        {
+            if (!_disposed)
+                return;
+
+            _disposed = true;
+
+            if (_buffer._queue.IsEmpty)
+                _buffer._transactionsAvailable.Reset();
+            else
+                Console.WriteLine("WAL transactions are still pending in the buffer when calling Enumerator.Dispose().");
         }
 
         public bool MoveNext(

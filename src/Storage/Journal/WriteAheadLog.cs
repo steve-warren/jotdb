@@ -19,11 +19,18 @@ public sealed class WriteAheadLog : IDisposable
         (LogFile as IDisposable)?.Dispose();
     }
 
-    public Task AppendAsync(DatabaseTransaction databaseTransaction)
+    public async Task AppendAsync(DatabaseTransaction databaseTransaction)
     {
-        var walTransaction = new WriteAheadLogTransaction(databaseTransaction);
+        Ensure.NotNull(databaseTransaction);
+        Ensure.That(
+            databaseTransaction.Size <= 4096,
+            "Transaction size must be 4096 bytes or less.");
 
-        return _buffer.WriteTransactionAsync(walTransaction);
+        using var walTransaction = new WriteAheadLogTransaction
+            (databaseTransaction);
+
+        await _buffer.WriteTransactionAsync(walTransaction).ConfigureAwait
+            (false);
     }
 
     public void FlushBuffer(CancellationToken cancellationToken)
