@@ -37,7 +37,7 @@ public sealed class WriteAheadLog : IDisposable
     {
         while (!cancellationToken.IsCancellationRequested)
         {
-            _buffer.WaitForTransactions(cancellationToken);
+            _buffer.Wait(cancellationToken);
 
             var transactionNumber =
                 Interlocked.Increment(ref _storageTransactionSequence);

@@ -32,7 +32,7 @@ public sealed class WriteAheadLogTransactionBuffer : IDisposable
         Dispose();
     }
 
-    public void WaitForTransactions(CancellationToken cancellationToken)
+    public void Wait(CancellationToken cancellationToken)
     {
         _transactionsAvailable.Wait(cancellationToken);
     }
