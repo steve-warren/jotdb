@@ -1,6 +1,8 @@
-﻿using JotDB;
+﻿using System.Security.Cryptography;
+using JotDB;
+using JotDB.Metrics;
 
-using var database = new Database(inMemory: true);
+using var database = new Database(inMemory: false);
 var run = database.RunAsync();
 var cts = new CancellationTokenSource();
 
@@ -56,25 +58,34 @@ var data =
 
 Console.WriteLine($"payload is {data.Length} bytes");
 
+/*
 _ = Task.Run(() =>
 {
-    while (true)
+    while (!cts.IsCancellationRequested)
     {
         Thread.Sleep(1000);
         Console.WriteLine($"{DateTime.Now} - {database
-            .AverageTransactionExecutionTime.TotalMilliseconds} ms; {database
+            .AverageTransactionExecutionTime.TotalMilliseconds} ms\n{database
             .TransactionSequenceNumber:N0} transactions");
     }
 }, cts.Token);
+*/
 
-while (!cts.IsCancellationRequested)
+var limit = 750_000;
+var tasks = new Task[Environment.ProcessorCount];
+
+var watch = StopwatchSlim.StartNew();
+for (var i = 0; i < Environment.ProcessorCount; i++)
 {
-    for (var i = 0; i < Environment.ProcessorCount; i++)
+    tasks[i] = Task.Factory.StartNew(() =>
     {
-        database.InsertDocumentAsync(data).GetAwaiter().GetResult();
-    }
-
-    //Thread.Sleep(100);
+        while (Interlocked.Decrement(ref limit) > 0)
+            database.InsertDocumentAsync(data).GetAwaiter().GetResult();
+    }, TaskCreationOptions.LongRunning);
 }
+
+Task.WaitAll(tasks);
+
+Console.WriteLine(watch.Elapsed.TotalMilliseconds);
 
 run.Wait();
