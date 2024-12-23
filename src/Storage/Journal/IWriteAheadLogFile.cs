@@ -7,8 +7,5 @@ public interface IWriteAheadLogFile
     void FlushToDisk();
 
     void WriteToDisk(
-        AlignedMemory memory);
-
-    void WriteToDisk(
         ReadOnlySpan<byte> span);
 }

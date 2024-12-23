@@ -72,8 +72,11 @@ public sealed class WriteAheadLogTransaction : IDisposable
             Timestamp = timestamp
         };
 
-        foreach (var operation in DatabaseTransaction.Operations)
+        // ReSharper disable once ForCanBeConvertedToForeach
+        for(var i = 0; i < DatabaseTransaction.Operations.Count; i++)
         {
+            var operation = DatabaseTransaction.Operations[i];
+
             var span = operation.Data.Span;
             header.DataLength = operation.Data.Length;
             header.Hash = MD5.HashData(span);

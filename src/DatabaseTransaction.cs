@@ -17,7 +17,6 @@ public sealed class DatabaseTransaction : IDisposable
     private readonly WriteAheadLog _wal;
     private readonly PageBuffer _pageBuffer = new();
     private readonly CancellationTokenSource _cts;
-    private readonly HashSet<DatabaseOperation> _operations = [];
     private uint _operationSequenceNumber = 0;
 
     public DatabaseTransaction(
@@ -34,7 +33,7 @@ public sealed class DatabaseTransaction : IDisposable
     public TimeSpan ExecutionTime { get; private set; }
     public uint Size { get; private set; }
     public uint OperationCount { get; private set; }
-    public IEnumerable<DatabaseOperation> Operations => _operations;
+    public List<DatabaseOperation> Operations { get; } = [];
 
     public DatabaseOperation AddOperation(
         ReadOnlyMemory<byte> data,
@@ -46,7 +45,7 @@ public sealed class DatabaseTransaction : IDisposable
             data,
             type);
 
-        _operations.Add(operation);
+        Operations.Add(operation);
 
         Size += (uint)data.Length;
         OperationCount++;

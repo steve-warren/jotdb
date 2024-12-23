@@ -1,5 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
 using JotDB.Memory;
+using JotDB.Metrics;
 
 namespace JotDB.Storage.Journal;
 
@@ -75,6 +76,8 @@ public sealed class WriteAheadLog : IDisposable
             cancellationToken.ThrowIfCancellationRequested();
 
             storageTransaction.Commit(cancellationToken);
+         
+            MetricSink.StorageTransactions.Apply(storageTransaction);
         }
     }
 

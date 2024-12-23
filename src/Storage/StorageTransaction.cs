@@ -31,7 +31,9 @@ public sealed class StorageTransaction
     }
 
     public ulong TransactionNumber { get; }
+    public int MergedTransactionCount { get; private set; }
     public TimeSpan ExecutionTime { get; private set; }
+    public int BytesCommitted { get; private set; }
 
     /// <summary>
     /// Commits the current storage transaction.
@@ -44,6 +46,7 @@ public sealed class StorageTransaction
         using var commitAwaiter = new AsyncAwaiter(cancellationToken);
         var commitSequenceNumber = 0U;
         var writer = new AlignedMemoryWriter(_storageMemory);
+        var walTransactionCount = 0;
 
         try
         {
@@ -55,9 +58,10 @@ public sealed class StorageTransaction
                     _storageMemory.Size);
 
             var transaction = default(WriteAheadLogTransaction);
-
+            
             while (enumerator.MoveNext(out transaction))
             {
+                walTransactionCount++;
                 transaction.Write(
                     ref writer,
                     ++commitSequenceNumber,
@@ -72,6 +76,8 @@ public sealed class StorageTransaction
 
             _writeAheadLogFile.WriteToDisk(writer.AlignedSpan);
             ExecutionTime = watch.Elapsed;
+            MergedTransactionCount = walTransactionCount;
+            BytesCommitted = writer.BytesWritten;
         }
 
         finally

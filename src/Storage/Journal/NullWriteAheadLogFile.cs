@@ -9,13 +9,9 @@ public class NullWriteAheadLogFile : IWriteAheadLogFile
         // no-op
     }
 
-    public void WriteToDisk(AlignedMemory memory)
-    {
-        // no-op
-    }
-
     public void WriteToDisk(ReadOnlySpan<byte> span)
     {
+        Thread.Sleep(1);
         // no-op
     }
 }

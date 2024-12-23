@@ -40,19 +40,7 @@ var data =
             "transaction_description": "justo aliquam quis turpis eget elit sodales scelerisque mauris sit amet eros suspendisse accumsan tortor quis",
             "card_type": "amex",
             "location": "PO Box 70107"
-          },
-          {
-              "transaction_id": 2,
-              "transaction_date": "1/28/2022",
-              "transaction_amount": 627.91,
-              "transaction_type": "withdrawal",
-              "account_number": 2666541771,
-              "merchant_name": "Rhyzio",
-              "transaction_category": "shopping",
-              "transaction_description": "turpis adipiscing lorem vitae mattis nibh ligula nec sem duis aliquam convallis nunc proin at turpis a",
-              "card_type": "visa",
-              "location": "PO Box 57660"
-            }
+          }
         """u8.ToArray();
 
 Console.WriteLine($"payload is {data.Length} bytes");
@@ -63,27 +51,36 @@ _ = Task.Run(() =>
     {
         Thread.Sleep(1000);
         Console.WriteLine($"{DateTime.Now} - {database
-            .AverageTransactionExecutionTime.TotalMilliseconds} ms\n{database
+            .AverageTransactionExecutionTime.TotalMilliseconds} ms {database
             .TransactionSequenceNumber:N0} transactions");
+        
+        Console.WriteLine($"\tstrx time: {MetricSink.StorageTransactions.ExecutionTime.TotalMilliseconds} ms");
+        Console.WriteLine($"\tstrx merged_trx_count: {MetricSink.StorageTransactions.MergedTransactionCount}");
+        Console.WriteLine($"\tstrx bytes_committed: {MetricSink.StorageTransactions.BytesCommitted:N0} bytes");
     }
 }, cts.Token);
 
-var limit = 500_000;
-var tasks = new Task[Environment.ProcessorCount];
-
-var watch = StopwatchSlim.StartNew();
-for (var i = 0; i < Environment.ProcessorCount; i++)
+while (!cts.IsCancellationRequested)
 {
-    tasks[i] = Task.Factory.StartNew(() =>
+    var limit = 750_000;
+    var tasks = new Task[Environment.ProcessorCount];
+
+    var watch = StopwatchSlim.StartNew();
+    for (var i = 0; i < Environment.ProcessorCount; i++)
     {
-        while (Interlocked.Decrement(ref limit) > 0)
-            database.InsertDocumentAsync(data).GetAwaiter().GetResult();
-    }, TaskCreationOptions.LongRunning);
+        tasks[i] = Task.Factory.StartNew(() =>
+        {
+            while (Interlocked.Decrement(ref limit) > 0)
+                database.InsertDocumentAsync(data).GetAwaiter().GetResult();
+        }, TaskCreationOptions.LongRunning);
+    }
+
+    Task.WaitAll(tasks);
+
+    Console.WriteLine($"{watch.Elapsed.TotalMilliseconds:N0} ms");
+    
+    Thread.Sleep(1000);
 }
-
-Task.WaitAll(tasks);
-
-Console.WriteLine(watch.Elapsed.TotalMilliseconds);
 
 database.TryShutdown();
 run.Wait();
