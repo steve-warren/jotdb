@@ -1,10 +1,12 @@
 using System.Diagnostics.CodeAnalysis;
+using JotDB.Memory;
 
 namespace JotDB.Storage.Journal;
 
 public sealed class WriteAheadLog : IDisposable
 {
-    private readonly WriteAheadLogTransactionBuffer _buffer = new();
+    private readonly WriteAheadLogTransactionBuffer _transactionBuffer = new();
+    private readonly AlignedMemory _storageBuffer;
     private ulong _storageTransactionSequence;
 
     public WriteAheadLog(bool inMemory)
@@ -12,6 +14,13 @@ public sealed class WriteAheadLog : IDisposable
         LogFile = inMemory
             ? new NullWriteAheadLogFile()
             : WriteAheadLogFile.Open("journal.txt");
+
+        _storageBuffer = AlignedMemory.Allocate(4 * 1024 * 1024);
+    }
+
+    ~WriteAheadLog()
+    {
+        Dispose();
     }
 
     public IWriteAheadLogFile LogFile { get; }
@@ -19,6 +28,9 @@ public sealed class WriteAheadLog : IDisposable
     public void Dispose()
     {
         (LogFile as IDisposable)?.Dispose();
+        _storageBuffer.Dispose();
+
+        GC.SuppressFinalize(this);
     }
 
     public async Task AppendAsync(DatabaseTransaction databaseTransaction)
@@ -26,12 +38,12 @@ public sealed class WriteAheadLog : IDisposable
         Ensure.NotNull(databaseTransaction);
         Ensure.That(
             databaseTransaction.Size <= 4096,
-            "Transaction size must be 4096 bytes or less.");
+            "Transaction size must be less than or equal to 4096 bytes.");
 
         using var walTransaction = new WriteAheadLogTransaction
             (databaseTransaction);
 
-        await _buffer.WriteTransactionAsync(walTransaction).ConfigureAwait
+        await _transactionBuffer.WriteTransactionAsync(walTransaction).ConfigureAwait
             (false);
     }
 
@@ -39,6 +51,7 @@ public sealed class WriteAheadLog : IDisposable
     /// Continuously flushes the transaction buffer to the write-ahead log until a cancellation is requested.
     /// </summary>
     /// <param name="cancellationToken">The token used to monitor for request cancellation and stop the operation.</param>
+    /// <remarks>This method will block until a cancellation is requested.</remarks>
     [DoesNotReturn]
     public void MonitorAndFlushBuffers(CancellationToken cancellationToken)
     {
@@ -47,7 +60,7 @@ public sealed class WriteAheadLog : IDisposable
             // early check
             cancellationToken.ThrowIfCancellationRequested();
 
-            _buffer.Wait(cancellationToken);
+            _transactionBuffer.Wait(cancellationToken);
 
             var transactionNumber =
                 Interlocked.Increment(ref _storageTransactionSequence);
@@ -55,7 +68,8 @@ public sealed class WriteAheadLog : IDisposable
             var storageTransaction = new StorageTransaction(
                 transactionNumber: transactionNumber,
                 LogFile,
-                _buffer);
+                _transactionBuffer,
+                _storageBuffer);
 
             // early check
             cancellationToken.ThrowIfCancellationRequested();

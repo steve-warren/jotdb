@@ -70,19 +70,16 @@ public sealed class WriteAheadLogTransactionBuffer : IDisposable
     public ref struct Enumerator
     {
         private readonly WriteAheadLogTransactionBuffer _buffer;
-        private readonly CancellationToken _cancellationToken;
         private readonly int _bytes;
         private uint _totalBytes = 0U;
         private bool _disposed;
 
         public Enumerator(
             WriteAheadLogTransactionBuffer buffer,
-            int bytes,
-            CancellationToken cancellationToken)
+            int bytes)
         {
             _buffer = buffer;
             _bytes = bytes;
-            _cancellationToken = cancellationToken;
         }
 
         public void Dispose()
@@ -95,20 +92,22 @@ public sealed class WriteAheadLogTransactionBuffer : IDisposable
             if (_buffer._queue.IsEmpty)
                 _buffer._transactionsAvailable.Reset();
             else
-                Console.WriteLine("WAL transactions are still pending in the buffer when calling Enumerator.Dispose().");
+                Console.WriteLine(
+                    "WAL transactions are still pending in the buffer when calling Enumerator.Dispose().");
         }
 
         public bool MoveNext(
             [MaybeNullWhen(false)] out WriteAheadLogTransaction transaction)
         {
-            _cancellationToken.ThrowIfCancellationRequested();
-
             if (!_buffer._queue.TryPeek(out transaction)) return false;
 
             if (_totalBytes + transaction.Size > _bytes) return false;
 
             _buffer._queue.TryDequeue(out _);
             _totalBytes += transaction.Size;
+
+            Debug.Assert(_totalBytes <= _bytes,
+                "WAL transaction size exceeds the specified limit.");
 
             return true;
         }

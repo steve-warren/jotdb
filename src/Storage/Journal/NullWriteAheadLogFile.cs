@@ -13,4 +13,9 @@ public class NullWriteAheadLogFile : IWriteAheadLogFile
     {
         // no-op
     }
+
+    public void WriteToDisk(ReadOnlySpan<byte> span)
+    {
+        // no-op
+    }
 }

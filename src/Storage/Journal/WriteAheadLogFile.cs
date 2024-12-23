@@ -67,10 +67,25 @@ public sealed class WriteAheadLogFile : IDisposable, IWriteAheadLogFile
 
     public void FlushToDisk() => RandomAccess.FlushToDisk(_fileHandle);
 
+    public void WriteToDisk(ReadOnlySpan<byte> span)
+    {
+         RandomAccess.Write(_fileHandle, span, _offset);
+         _offset += span.Length;
+    }
+
     public void WriteToDisk(
         AlignedMemory memory)
     {
-        RandomAccess.Write(_fileHandle, memory.Span, _offset);
-        _offset += memory.Size;
+        // round to nearest 4KiB number
+        var roundedSize = (memory.Size + 4095) & ~4095;
+        if (roundedSize > memory.Span.Length)
+        {
+            throw new ArgumentOutOfRangeException(nameof(memory),
+                "Rounded size exceeds span length.");
+        }
+
+        ReadOnlySpan<byte> slicedSpan = memory.Span.Slice(0, roundedSize);
+        RandomAccess.Write(_fileHandle, slicedSpan, _offset);
+        _offset += roundedSize;
     }
 }

@@ -1,5 +1,4 @@
-﻿using System.Security.Cryptography;
-using JotDB;
+﻿using JotDB;
 using JotDB.Metrics;
 
 using var database = new Database(inMemory: true);
@@ -58,7 +57,6 @@ var data =
 
 Console.WriteLine($"payload is {data.Length} bytes");
 
-/*
 _ = Task.Run(() =>
 {
     while (!cts.IsCancellationRequested)
@@ -69,9 +67,8 @@ _ = Task.Run(() =>
             .TransactionSequenceNumber:N0} transactions");
     }
 }, cts.Token);
-*/
 
-var limit = 100;
+var limit = 500_000;
 var tasks = new Task[Environment.ProcessorCount];
 
 var watch = StopwatchSlim.StartNew();

@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 
@@ -19,8 +20,8 @@ public sealed unsafe class AlignedMemory : IDisposable,
     /// <returns>A new instance of <see cref="AlignedMemory"/> with the specified size and alignment.</returns>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static AlignedMemory Allocate(
-        nuint size,
-        nuint alignment)
+        nuint size = 4096,
+        nuint alignment = 4096)
     {
         return new AlignedMemory(
             size,
@@ -34,7 +35,9 @@ public sealed unsafe class AlignedMemory : IDisposable,
     {
         _id = Interlocked.Increment(ref sequenceNumber_);
         _pointer = NativeMemory.AlignedAlloc(size, alignment);
+
         Size = (int)size;
+        Alignment = (int)alignment;
     }
 
     ~AlignedMemory()
@@ -44,6 +47,7 @@ public sealed unsafe class AlignedMemory : IDisposable,
 
     public uint Id => _id;
     public int Size { get; }
+    public int Alignment { get; }
     public void* Pointer => _pointer;
 
     public Span<byte> Span =>
@@ -59,6 +63,32 @@ public sealed unsafe class AlignedMemory : IDisposable,
         GC.SuppressFinalize(this);
     }
 
+    /// <summary>
+    /// Provides a slice of the memory block as a read-only span, starting at the specified offset and extending for the specified length.
+    /// </summary>
+    /// <param name="start">The zero-based start index within the memory block.</param>
+    /// <param name="length">The number of bytes in the slice.</param>
+    /// <returns>A <see cref="ReadOnlySpan{T}"/> representing the specified portion of the memory block.</returns>
+    public ReadOnlySpan<byte> DangerousSlice(
+        int start,
+        int length)
+    {
+        return new ReadOnlySpan<byte>(
+            (byte*)_pointer + start, length);
+    }
+
+    /// <summary>
+    /// Clears a specified portion of the memory block by setting its contents to zero, starting at the given offset and continuing for the specified length.
+    /// </summary>
+    /// <param name="start">The zero-based start index within the memory block to begin clearing.</param>
+    /// <param name="length">The number of bytes to clear.</param>
+    public void DangerousClear(
+        int start,
+        int length)
+    {
+        NativeMemory.Clear((byte*)_pointer + start, (nuint)length);
+    }
+
     public bool Equals(AlignedMemory? other)
     {
         if (other is null) return false;
@@ -68,7 +98,8 @@ public sealed unsafe class AlignedMemory : IDisposable,
 
     public override bool Equals(object? obj)
     {
-        return ReferenceEquals(this, obj) || obj is AlignedMemory other && Equals(other);
+        return ReferenceEquals(this, obj) ||
+               obj is AlignedMemory other && Equals(other);
     }
 
     public override int GetHashCode()

@@ -1,5 +1,3 @@
-using System.Diagnostics;
-using System.Transactions;
 using JotDB.Memory;
 using JotDB.Metrics;
 using JotDB.Storage.Journal;
@@ -18,15 +16,18 @@ public sealed class StorageTransaction
 {
     private readonly IWriteAheadLogFile _writeAheadLogFile;
     private readonly WriteAheadLogTransactionBuffer _transactionBuffer;
+    private readonly AlignedMemory _storageMemory;
 
     public StorageTransaction(
         ulong transactionNumber,
         IWriteAheadLogFile writeAheadLogFile,
-        WriteAheadLogTransactionBuffer transactionBuffer)
+        WriteAheadLogTransactionBuffer transactionBuffer,
+        AlignedMemory storageMemory)
     {
         TransactionNumber = transactionNumber;
         _writeAheadLogFile = writeAheadLogFile;
         _transactionBuffer = transactionBuffer;
+        _storageMemory = storageMemory;
     }
 
     public ulong TransactionNumber { get; }
@@ -42,16 +43,16 @@ public sealed class StorageTransaction
     {
         using var commitAwaiter = new AsyncAwaiter(cancellationToken);
         var commitSequenceNumber = 0U;
-        var memory = AlignedMemoryPool.Default.Rent();
-        var writer = new AlignedMemoryWriter(memory);
+        var writer = new AlignedMemoryWriter(_storageMemory);
 
         try
         {
             var watch = StopwatchSlim.StartNew();
-            using var enumerator = new WriteAheadLogTransactionBuffer.Enumerator(
-                _transactionBuffer,
-                4096,
-                cancellationToken);
+            var now = DateTime.UtcNow.Ticks;
+            using var enumerator =
+                new WriteAheadLogTransactionBuffer.Enumerator(
+                    _transactionBuffer,
+                    _storageMemory.Size);
 
             var transaction = default(WriteAheadLogTransaction);
 
@@ -60,24 +61,22 @@ public sealed class StorageTransaction
                 transaction.Write(
                     ref writer,
                     ++commitSequenceNumber,
-                    DateTime.UtcNow.Ticks);
+                    now);
                 transaction.Commit(after: commitAwaiter.Task);
             }
 
             if (writer.BytesWritten == 0)
                 return;
 
-            writer.ZeroRemainingBytes();
+            writer.ZeroUnusedBytesAligned();
 
-            _writeAheadLogFile.WriteToDisk(memory);
+            _writeAheadLogFile.WriteToDisk(writer.AlignedSpan);
             ExecutionTime = watch.Elapsed;
         }
 
         finally
         {
             commitAwaiter.SignalCompletion();
-
-            AlignedMemoryPool.Default.Return(memory);
         }
     }
 }
