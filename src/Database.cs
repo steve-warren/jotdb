@@ -10,19 +10,29 @@ public sealed class Database : IDisposable
     private readonly TaskCompletionSource _runningStateTask = new();
     private volatile DatabaseState _state = DatabaseState.Stopped;
     private readonly CancellationTokenSource _shutdownTokenSource = new();
+    private readonly Thread _flushTransactionThread;
     private ExponentialMovingAverage _transactionExecutionTimes = new();
     private ulong _transactionSequence;
 
     public Database(bool inMemory = true)
     {
         WriteAheadLog = new WriteAheadLog(inMemory);
+        _flushTransactionThread = new Thread(WriteAheadLogWriteThread)
+        {
+            Priority = ThreadPriority.Highest,
+            Name = "WAL Loop"
+        };
     }
 
     public DatabaseState State => _state;
-    public TimeSpan AverageTransactionExecutionTime => _transactionExecutionTimes.ReadTimeSpan();
+
+    public TimeSpan AverageTransactionExecutionTime =>
+        _transactionExecutionTimes.ReadTimeSpan();
+
     public WriteAheadLog WriteAheadLog { get; }
 
-    public ulong TransactionSequenceNumber => Volatile.Read(ref _transactionSequence);
+    public ulong TransactionSequenceNumber =>
+        Volatile.Read(ref _transactionSequence);
 
     public void AddBackgroundWorker(
         string name,
@@ -82,6 +92,22 @@ public sealed class Database : IDisposable
         return transaction;
     }
 
+    private void WriteAheadLogWriteThread()
+    {
+        Console.WriteLine($"starting WAL write thread.");
+
+        try
+        {
+            WriteAheadLog.MonitorAndFlushBuffers(
+                _shutdownTokenSource.Token);
+        }
+
+        catch (OperationCanceledException)
+        {
+            Console.WriteLine("WAL write thread canceled.");
+        }
+    }
+
     private void FlushToDisk()
     {
         Console.WriteLine("journal fsync");
@@ -136,29 +162,8 @@ public sealed class Database : IDisposable
 
         Console.WriteLine("running database");
 
-        var wal = WriteAheadLog;
-        var token = _shutdownTokenSource.Token;
 
-        var flushTransactionThread = new Thread(() =>
-        {
-            Console.WriteLine($"starting flush transaction thread.");
-
-            try
-            {
-                wal.FlushBuffer(token);
-            }
-
-            catch (OperationCanceledException)
-            {
-                Console.WriteLine("flush transaction thread canceled.");
-            }
-        })
-        {
-            Priority = ThreadPriority.Highest,
-            Name = "Flush Transaction Thread"
-        };
-
-        flushTransactionThread.Start();
+        _flushTransactionThread.Start();
 
         return _runningStateTask.Task;
     }
@@ -191,6 +196,9 @@ public sealed class Database : IDisposable
                     $"stopped background worker '{worker.Name}' but an unhandled exception occurred: {ex}");
             }
         }
+
+        if (!_flushTransactionThread.Join(3000))
+            Console.WriteLine("WARNING: failed to terminate WAL loop thread.");
 
         FlushToDisk();
         WriteAheadLog.Dispose();

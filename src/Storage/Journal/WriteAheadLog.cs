@@ -1,3 +1,5 @@
+using System.Diagnostics.CodeAnalysis;
+
 namespace JotDB.Storage.Journal;
 
 public sealed class WriteAheadLog : IDisposable
@@ -33,10 +35,18 @@ public sealed class WriteAheadLog : IDisposable
             (false);
     }
 
-    public void FlushBuffer(CancellationToken cancellationToken)
+    /// <summary>
+    /// Continuously flushes the transaction buffer to the write-ahead log until a cancellation is requested.
+    /// </summary>
+    /// <param name="cancellationToken">The token used to monitor for request cancellation and stop the operation.</param>
+    [DoesNotReturn]
+    public void MonitorAndFlushBuffers(CancellationToken cancellationToken)
     {
-        while (!cancellationToken.IsCancellationRequested)
+        while (true)
         {
+            // early check
+            cancellationToken.ThrowIfCancellationRequested();
+
             _buffer.Wait(cancellationToken);
 
             var transactionNumber =
@@ -46,6 +56,9 @@ public sealed class WriteAheadLog : IDisposable
                 transactionNumber: transactionNumber,
                 LogFile,
                 _buffer);
+
+            // early check
+            cancellationToken.ThrowIfCancellationRequested();
 
             storageTransaction.Commit(cancellationToken);
         }

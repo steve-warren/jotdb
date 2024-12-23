@@ -2,7 +2,7 @@
 using JotDB;
 using JotDB.Metrics;
 
-using var database = new Database(inMemory: false);
+using var database = new Database(inMemory: true);
 var run = database.RunAsync();
 var cts = new CancellationTokenSource();
 
@@ -71,7 +71,7 @@ _ = Task.Run(() =>
 }, cts.Token);
 */
 
-var limit = 750_000;
+var limit = 100;
 var tasks = new Task[Environment.ProcessorCount];
 
 var watch = StopwatchSlim.StartNew();
@@ -88,4 +88,5 @@ Task.WaitAll(tasks);
 
 Console.WriteLine(watch.Elapsed.TotalMilliseconds);
 
+database.TryShutdown();
 run.Wait();
