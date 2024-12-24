@@ -34,7 +34,8 @@ public sealed class AsyncAwaiter : IDisposable
     public AsyncAwaiter(CancellationToken cancellationToken = default)
     {
         _ctr = cancellationToken.Register(() => _tcs.TrySetCanceled());
-        _cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        _cts = CancellationTokenSource.CreateLinkedTokenSource(
+            cancellationToken);
         _token = _cts.Token;
     }
 
@@ -57,10 +58,11 @@ public sealed class AsyncAwaiter : IDisposable
         var tcsLocal = _tcs;
 
         _ = after.ContinueWith((_, o) =>
-        {
-            var tcs = (TaskCompletionSource)o;
-            tcs.TrySetResult();
-        }, tcsLocal, _token, TaskContinuationOptions.ExecuteSynchronously, TaskScheduler.Current);
+            {
+                var tcs = (TaskCompletionSource)o;
+                tcs.TrySetResult();
+            }, tcsLocal, _token, TaskContinuationOptions.ExecuteSynchronously,
+            TaskScheduler.Current);
     }
 
     public void SignalFault(Exception exception)
@@ -78,14 +80,15 @@ public sealed class AsyncAwaiter : IDisposable
     {
         if (!_tcs.Task.IsCompleted)
             return false;
-        
+
         var tcsOriginal = Interlocked.Exchange(
             ref _tcs,
-            new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously));
+            new TaskCompletionSource(TaskCreationOptions
+                .RunContinuationsAsynchronously));
 
         return true;
     }
-    
+
     public void Dispose()
     {
         _cts.Cancel();

@@ -32,6 +32,8 @@ public sealed class WriteAheadLogTransactionBuffer : IDisposable
         Dispose();
     }
 
+    public int Count => _queue.Count;
+
     public void Wait(CancellationToken cancellationToken)
     {
         _transactionsAvailable.Wait(cancellationToken);
@@ -99,9 +101,12 @@ public sealed class WriteAheadLogTransactionBuffer : IDisposable
         public bool MoveNext(
             [MaybeNullWhen(false)] out WriteAheadLogTransaction transaction)
         {
-            if (!_buffer._queue.TryPeek(out transaction)) return false;
-
-            if (_totalBytes + transaction.Size > _bytes) return false;
+            if (!_buffer._queue.TryPeek(out transaction) ||
+                _totalBytes + transaction.Size > _bytes)
+            {
+                _buffer._transactionsAvailable.Reset();
+                return false;
+            }
 
             _buffer._queue.TryDequeue(out _);
             _totalBytes += transaction.Size;

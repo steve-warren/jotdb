@@ -36,6 +36,8 @@ public sealed unsafe class AlignedMemory : IDisposable,
         _id = Interlocked.Increment(ref sequenceNumber_);
         _pointer = NativeMemory.AlignedAlloc(size, alignment);
 
+        NativeMemory.Clear((byte*)_pointer, size);
+
         Size = (int)size;
         Alignment = (int)alignment;
     }

@@ -11,7 +11,6 @@ public class NullWriteAheadLogFile : IWriteAheadLogFile
 
     public void WriteToDisk(ReadOnlySpan<byte> span)
     {
-        Thread.Sleep(1);
         // no-op
     }
 }

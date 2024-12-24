@@ -31,7 +31,7 @@ public sealed class StorageTransaction
     }
 
     public ulong TransactionNumber { get; }
-    public int MergedTransactionCount { get; private set; }
+    public int TransactionMergeCount { get; private set; }
     public TimeSpan ExecutionTime { get; private set; }
     public int BytesCommitted { get; private set; }
 
@@ -50,16 +50,15 @@ public sealed class StorageTransaction
 
         try
         {
-            var watch = StopwatchSlim.StartNew();
             var now = DateTime.UtcNow.Ticks;
             using var enumerator =
                 new WriteAheadLogTransactionBuffer.Enumerator(
                     _transactionBuffer,
                     _storageMemory.Size);
 
-            var transaction = default(WriteAheadLogTransaction);
-            
-            while (enumerator.MoveNext(out transaction))
+            var watch = StopwatchSlim.StartNew();
+
+            while (enumerator.MoveNext(out var transaction))
             {
                 walTransactionCount++;
                 transaction.Write(
@@ -69,20 +68,18 @@ public sealed class StorageTransaction
                 transaction.Commit(after: commitAwaiter.Task);
             }
 
-            if (writer.BytesWritten == 0)
-                return;
-
-            writer.ZeroUnusedBytesAligned();
-
             _writeAheadLogFile.WriteToDisk(writer.AlignedSpan);
             ExecutionTime = watch.Elapsed;
-            MergedTransactionCount = walTransactionCount;
-            BytesCommitted = writer.BytesWritten;
         }
 
         finally
         {
             commitAwaiter.SignalCompletion();
+
+            // clear the bytes used
+            writer.ZeroUsedBytes();
+            TransactionMergeCount = walTransactionCount;
+            BytesCommitted = writer.BytesWritten;
         }
     }
 }

@@ -12,7 +12,7 @@ public static class MetricSink
 
         public static void Apply(StorageTransaction transaction)
         {
-            _mergedTransactionCount.Update(transaction.MergedTransactionCount);
+            _mergedTransactionCount.Update(transaction.TransactionMergeCount);
             _executionTime.Update(transaction.ExecutionTime.Ticks);
             _bytesCommitted.Update(transaction.BytesCommitted);
         }

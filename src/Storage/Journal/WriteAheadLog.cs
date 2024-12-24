@@ -12,6 +12,7 @@ public sealed class WriteAheadLog : IDisposable
 
     public WriteAheadLog(bool inMemory)
     {
+        File.Delete("journal.txt");
         LogFile = inMemory
             ? new NullWriteAheadLogFile()
             : WriteAheadLogFile.Open("journal.txt");
@@ -44,8 +45,9 @@ public sealed class WriteAheadLog : IDisposable
         using var walTransaction = new WriteAheadLogTransaction
             (databaseTransaction);
 
-        await _transactionBuffer.WriteTransactionAsync(walTransaction).ConfigureAwait
-            (false);
+        await _transactionBuffer.WriteTransactionAsync(walTransaction)
+            .ConfigureAwait
+                (false);
     }
 
     /// <summary>
@@ -76,7 +78,7 @@ public sealed class WriteAheadLog : IDisposable
             cancellationToken.ThrowIfCancellationRequested();
 
             storageTransaction.Commit(cancellationToken);
-         
+
             MetricSink.StorageTransactions.Apply(storageTransaction);
         }
     }

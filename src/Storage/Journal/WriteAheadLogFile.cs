@@ -1,6 +1,5 @@
 using System.Diagnostics;
 using System.Runtime.InteropServices;
-using JotDB.Memory;
 using JotDB.Platform.MacOS;
 using Microsoft.Win32.SafeHandles;
 
@@ -31,10 +30,11 @@ public sealed class WriteAheadLogFile : IDisposable, IWriteAheadLogFile
 
         var handle = File.OpenHandle(
             path: path,
-            mode: FileMode.OpenOrCreate,
+            mode: FileMode.Create,
             access: FileAccess.ReadWrite,
             share: FileShare.None,
-            options: fileOptions);
+            options: fileOptions,
+            preallocationSize: 4 * 1024 * 1024);
 
         if (!OperatingSystem.IsMacOS()) return handle;
 

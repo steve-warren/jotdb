@@ -104,7 +104,7 @@ public sealed class Database : IDisposable
 
         catch (OperationCanceledException)
         {
-            Console.WriteLine("WAL write thread canceled.");
+            Console.WriteLine("WAL write thread shut down.");
         }
     }
 

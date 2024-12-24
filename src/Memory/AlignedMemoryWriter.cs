@@ -70,6 +70,13 @@ public ref struct AlignedMemoryWriter
             length: alignedSize - BytesWritten);
     }
 
+    public readonly void ZeroUsedBytes()
+    {
+        Memory.DangerousClear(
+            0,
+            BytesWritten);
+    }
+
     public unsafe void Write<T>(T value)
         where T : allows ref struct
     {

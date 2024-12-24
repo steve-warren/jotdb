@@ -1,7 +1,7 @@
 ﻿using JotDB;
 using JotDB.Metrics;
 
-using var database = new Database(inMemory: true);
+using var database = new Database(inMemory: false);
 var run = database.RunAsync();
 var cts = new CancellationTokenSource();
 
@@ -53,20 +53,23 @@ _ = Task.Run(() =>
         Console.WriteLine($"{DateTime.Now} - {database
             .AverageTransactionExecutionTime.TotalMilliseconds} ms {database
             .TransactionSequenceNumber:N0} transactions");
-        
-        Console.WriteLine($"\tstrx time: {MetricSink.StorageTransactions.ExecutionTime.TotalMilliseconds} ms");
-        Console.WriteLine($"\tstrx merged_trx_count: {MetricSink.StorageTransactions.MergedTransactionCount}");
-        Console.WriteLine($"\tstrx bytes_committed: {MetricSink.StorageTransactions.BytesCommitted:N0} bytes");
+
+        Console.WriteLine(
+            $"\tstrx time: {MetricSink.StorageTransactions.ExecutionTime.TotalMilliseconds} ms");
+        Console.WriteLine(
+            $"\tstrx merged_trx_count: {MetricSink.StorageTransactions.MergedTransactionCount}");
+        Console.WriteLine(
+            $"\tstrx bytes_committed: {MetricSink.StorageTransactions.BytesCommitted:N0} bytes");
     }
 }, cts.Token);
 
 while (!cts.IsCancellationRequested)
 {
-    var limit = 750_000;
-    var tasks = new Task[Environment.ProcessorCount];
+    var limit = 100;
+    var tasks = new Task[1];
 
     var watch = StopwatchSlim.StartNew();
-    for (var i = 0; i < Environment.ProcessorCount; i++)
+    for (var i = 0; i < 1; i++)
     {
         tasks[i] = Task.Factory.StartNew(() =>
         {
@@ -78,7 +81,7 @@ while (!cts.IsCancellationRequested)
     Task.WaitAll(tasks);
 
     Console.WriteLine($"{watch.Elapsed.TotalMilliseconds:N0} ms");
-    
+
     Thread.Sleep(1000);
 }
 
