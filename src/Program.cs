@@ -66,10 +66,10 @@ _ = Task.Run(() =>
 while (!cts.IsCancellationRequested)
 {
     var limit = 100;
-    var tasks = new Task[1];
+    var tasks = new Task[4];
 
     var watch = StopwatchSlim.StartNew();
-    for (var i = 0; i < 1; i++)
+    for (var i = 0; i < 4; i++)
     {
         tasks[i] = Task.Factory.StartNew(() =>
         {

@@ -90,7 +90,15 @@ public sealed class WriteAheadLogTransaction : IDisposable
         _awaiter.SignalFault(new Exception(message));
     }
 
-    public void Commit(Task after)
+    /// <summary>
+    /// Schedules the commit of a transaction to occur after the specified task completes.
+    /// </summary>
+    /// <remarks>
+    /// This method allows deferring the commit operation of a transaction until a given task is completed.
+    /// It leverages the asynchronous awaiter mechanism to signal the completion of the transaction.
+    /// </remarks>
+    /// <param name="after">The task after which the transaction will be committed.</param>
+    public void CommitWhen(Task after)
     {
         _awaiter.SignalCompletionAfter(after);
     }

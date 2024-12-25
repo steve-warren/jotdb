@@ -108,12 +108,6 @@ public sealed class Database : IDisposable
         }
     }
 
-    private void FlushToDisk()
-    {
-        Console.WriteLine("journal fsync");
-        WriteAheadLog.FlushToDisk();
-    }
-
     private async Task OnStartingAsync()
     {
         _state = DatabaseState.Starting;
@@ -200,7 +194,7 @@ public sealed class Database : IDisposable
         if (!_flushTransactionThread.Join(3000))
             Console.WriteLine("WARNING: failed to terminate WAL loop thread.");
 
-        FlushToDisk();
+        Console.WriteLine("journal fsync");
         WriteAheadLog.Dispose();
     }
 

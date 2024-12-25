@@ -14,13 +14,13 @@ namespace JotDB.Storage;
 /// </remarks>
 public sealed class StorageTransaction
 {
-    private readonly IWriteAheadLogFile _writeAheadLogFile;
+    private readonly WriteAheadLogFile _writeAheadLogFile;
     private readonly WriteAheadLogTransactionBuffer _transactionBuffer;
     private readonly AlignedMemory _storageMemory;
 
     public StorageTransaction(
         ulong transactionNumber,
-        IWriteAheadLogFile writeAheadLogFile,
+        WriteAheadLogFile writeAheadLogFile,
         WriteAheadLogTransactionBuffer transactionBuffer,
         AlignedMemory storageMemory)
     {
@@ -41,7 +41,7 @@ public sealed class StorageTransaction
     /// to storage and properly handled before signaling completion.
     /// </summary>
     /// <param name="cancellationToken">A token to observe while waiting for the task to complete.</param>
-    public void Commit(CancellationToken cancellationToken = default)
+    public void MergeCommit(CancellationToken cancellationToken = default)
     {
         using var commitAwaiter = new AsyncAwaiter(cancellationToken);
         var commitSequenceNumber = 0U;
@@ -65,15 +65,16 @@ public sealed class StorageTransaction
                     ref writer,
                     ++commitSequenceNumber,
                     now);
-                transaction.Commit(after: commitAwaiter.Task);
+                transaction.CommitWhen(after: commitAwaiter.CompletedTask);
             }
 
-            _writeAheadLogFile.WriteToDisk(writer.AlignedSpan);
+            _writeAheadLogFile.Write(writer.AlignedSpan);
             ExecutionTime = watch.Elapsed;
         }
 
         finally
         {
+            // signal all waiting tasks that their transactions are completed.
             commitAwaiter.SignalCompletion();
 
             // clear the bytes used

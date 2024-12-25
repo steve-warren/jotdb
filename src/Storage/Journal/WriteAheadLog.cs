@@ -7,17 +7,17 @@ namespace JotDB.Storage.Journal;
 public sealed class WriteAheadLog : IDisposable
 {
     private readonly WriteAheadLogTransactionBuffer _transactionBuffer = new();
-    private readonly AlignedMemory _storageBuffer;
     private ulong _storageTransactionSequence;
+    private readonly WriteAheadLogFile _file;
+    private readonly AlignedMemory _fileBuffer;
 
     public WriteAheadLog(bool inMemory)
     {
-        File.Delete("journal.txt");
-        LogFile = inMemory
+        _file = inMemory
             ? new NullWriteAheadLogFile()
-            : WriteAheadLogFile.Open("journal.txt");
+            : SafeFileHandleWriteAheadLogFile.Open();
 
-        _storageBuffer = AlignedMemory.Allocate(4 * 1024 * 1024);
+        _fileBuffer = AlignedMemory.Allocate(4 * 1024 * 1024);
     }
 
     ~WriteAheadLog()
@@ -25,12 +25,11 @@ public sealed class WriteAheadLog : IDisposable
         Dispose();
     }
 
-    public IWriteAheadLogFile LogFile { get; }
-
     public void Dispose()
     {
-        (LogFile as IDisposable)?.Dispose();
-        _storageBuffer.Dispose();
+        _file.Flush();
+        _file.Dispose();
+        _fileBuffer.Dispose();
 
         GC.SuppressFinalize(this);
     }
@@ -63,6 +62,8 @@ public sealed class WriteAheadLog : IDisposable
             // early check
             cancellationToken.ThrowIfCancellationRequested();
 
+            // block the current thread
+            // until the buffer has transactions
             _transactionBuffer.Wait(cancellationToken);
 
             var transactionNumber =
@@ -70,21 +71,23 @@ public sealed class WriteAheadLog : IDisposable
 
             var storageTransaction = new StorageTransaction(
                 transactionNumber: transactionNumber,
-                LogFile,
+                _file,
                 _transactionBuffer,
-                _storageBuffer);
+                _fileBuffer);
 
             // early check
             cancellationToken.ThrowIfCancellationRequested();
 
-            storageTransaction.Commit(cancellationToken);
+            // merge and commit transactions from the buffer
+            storageTransaction.MergeCommit(cancellationToken);
 
             MetricSink.StorageTransactions.Apply(storageTransaction);
-        }
-    }
 
-    public void FlushToDisk()
-    {
-        LogFile.FlushToDisk();
+            // here we need to check the health of the wal file
+            // and roll over if necessary.
+
+            // fsync and rotate the file if necessary
+            _file.Rotate();
+        }
     }
 }

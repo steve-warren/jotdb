@@ -44,7 +44,14 @@ public sealed class AsyncAwaiter : IDisposable
         Dispose();
     }
 
-    public Task Task => _tcs.Task;
+    /// <summary>
+    /// Gets a task that represents the state of completion for the AsyncAwaiter.
+    /// </summary>
+    /// <remarks>
+    /// This property returns a Task that completes when the AsyncAwaiter signals its completion.
+    /// It can be awaited to coordinate asynchronous operations that depend on the completion signal.
+    /// </remarks>
+    public Task CompletedTask => _tcs.Task;
 
     public bool IsSet => _tcs.Task.IsCompleted;
 

@@ -1,15 +1,23 @@
-using JotDB.Memory;
-
 namespace JotDB.Storage.Journal;
 
-public class NullWriteAheadLogFile : IWriteAheadLogFile
+public sealed class NullWriteAheadLogFile : WriteAheadLogFile
 {
-    public void FlushToDisk()
+    public override void Flush()
     {
         // no-op
     }
 
-    public void WriteToDisk(ReadOnlySpan<byte> span)
+    public override void Write(ReadOnlySpan<byte> span)
+    {
+        // no-op
+    }
+
+    public override bool Rotate()
+    {
+        return false;
+    }
+
+    public override void Dispose()
     {
         // no-op
     }
