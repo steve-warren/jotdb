@@ -63,26 +63,26 @@ void OutputStats()
     Console.WriteLine($"{DateTime.Now}");
 
     Console.WriteLine(
-        $"dtrx time: {MetricSink.DatabaseTransactions.AverageTransactionExecutionTime.TotalMilliseconds:N0} ms");
+        $"dtrx avg_time: {MetricSink.DatabaseTransactions.AverageTransactionExecutionTime.TotalMilliseconds:N0} ms");
     Console.WriteLine(
         $"dtrx count: {MetricSink.DatabaseTransactions.TransactionCount:N0} transactions");
     Console.WriteLine(
-        $"strx time: {MetricSink.StorageTransactions
+        $"strx avg_time: {MetricSink.StorageTransactions
             .AverageExecutionTime.TotalMilliseconds:N0} ms");
     Console.WriteLine(
-        $"strx merged_trx_count: {MetricSink.StorageTransactions
+        $"strx avg_merged_trx_count: {MetricSink.StorageTransactions
             .AverageMergedTransactionCount:N0}");
     Console.WriteLine(
-        $"strx bytes_committed: {MetricSink.StorageTransactions.AverageBytesCommitted:N0} bytes");
+        $"strx avg_bytes_committed: {MetricSink.StorageTransactions.AverageBytesCommitted:N0} bytes");
     Console.WriteLine(
-        $"wal_avg_rotation_time: {MetricSink.WriteAheadLog
+        $"wal avg_rotation_time: {MetricSink.WriteAheadLog
             .AverageRotationTime.TotalMilliseconds:N0} ms");
     Console.WriteLine(
-        $"wal_rotation_count: {MetricSink.WriteAheadLog
+        $"wal rotation_count: {MetricSink.WriteAheadLog
             .RotationCount:N0} rotations");
     Console.WriteLine(
-        $"wal_write_time: {MetricSink.WriteAheadLog.AverageWriteTime
+        $"wal avg_write_time: {MetricSink.WriteAheadLog.AverageWriteTime
             .TotalMicroseconds:N0} μs");
     Console.WriteLine(
-        $"wal_write_count: {MetricSink.WriteAheadLog.WriteCount:N0} writes");
+        $"wal write_count: {MetricSink.WriteAheadLog.WriteCount:N0} writes");
 }
