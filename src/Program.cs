@@ -56,10 +56,10 @@ Console.WriteLine($"payload is {data.Length} bytes");
 
 var limit = 10_000;
 
-var tasks = new Task[4];
+var tasks = new Task[8];
 
 var watch = StopwatchSlim.StartNew();
-for (var i = 0; i < 4; i++)
+for (var i = 0; i < 8; i++)
 {
     tasks[i] = Task.Factory.StartNew(() =>
     {

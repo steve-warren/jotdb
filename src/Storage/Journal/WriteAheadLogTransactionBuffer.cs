@@ -99,10 +99,28 @@ public sealed class WriteAheadLogTransactionBuffer : IDisposable
         }
 
         public bool MoveNext(
-            [MaybeNullWhen(false)] out WriteAheadLogTransaction transaction)
+            [MaybeNullWhen(false)]
+            out WriteAheadLogTransaction transaction)
         {
-            if (!_buffer._queue.TryPeek(out transaction) ||
-                _totalBytes + transaction.Size > _bytes)
+            const int MAX_SPIN_COUNT = 10;
+            var spinCount = 0;
+
+            tryPeek:
+            if (!_buffer._queue.TryPeek(out transaction))
+            {
+                Thread.SpinWait(1);
+
+                if (spinCount < MAX_SPIN_COUNT)
+                {
+                    spinCount++;
+                    goto tryPeek;
+                }
+
+                _buffer._transactionsAvailable.Reset();
+                return false;
+            }
+
+            if (_totalBytes + transaction.Size > _bytes)
             {
                 _buffer._transactionsAvailable.Reset();
                 return false;

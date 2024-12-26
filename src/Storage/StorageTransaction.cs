@@ -46,7 +46,7 @@ public sealed class StorageTransaction
         using var commitAwaiter = new AsyncAwaiter(cancellationToken);
         var commitSequenceNumber = 0U;
         var writer = new AlignedMemoryWriter(_storageMemory);
-        var walTransactionCount = 0;
+        var transactionMergeCount = 0;
 
         try
         {
@@ -60,7 +60,7 @@ public sealed class StorageTransaction
 
             while (enumerator.MoveNext(out var transaction))
             {
-                walTransactionCount++;
+                transactionMergeCount++;
                 transaction.Write(
                     ref writer,
                     ++commitSequenceNumber,
@@ -79,7 +79,7 @@ public sealed class StorageTransaction
 
             // clear the bytes used
             writer.ZeroUsedBytes();
-            TransactionMergeCount = walTransactionCount;
+            TransactionMergeCount = transactionMergeCount;
             BytesCommitted = writer.BytesWritten;
 
             MetricSink.StorageTransactions.Apply(this);
