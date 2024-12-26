@@ -71,6 +71,8 @@ public sealed class WriteAheadLogTransactionBuffer : IDisposable
     /// <seealso cref="JotDB.Storage.Journal.WriteAheadLogTransaction" />
     public ref struct Enumerator
     {
+        const int MAX_SPIN_COUNT = 10;
+
         private readonly WriteAheadLogTransactionBuffer _buffer;
         private readonly int _bytes;
         private uint _totalBytes = 0U;
@@ -99,10 +101,8 @@ public sealed class WriteAheadLogTransactionBuffer : IDisposable
         }
 
         public bool MoveNext(
-            [MaybeNullWhen(false)]
-            out WriteAheadLogTransaction transaction)
+            [MaybeNullWhen(false)] out WriteAheadLogTransaction transaction)
         {
-            const int MAX_SPIN_COUNT = 10;
             var spinCount = 0;
 
             tryPeek:

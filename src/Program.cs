@@ -45,44 +45,27 @@ var data =
 
 Console.WriteLine($"payload is {data.Length} bytes");
 
-/*_ = Task.Run(() =>
+var limit = 100_000;
+
+Parallel.ForAsync(0, limit, cts.Token, async (i, token) =>
 {
-    while (!cts.IsCancellationRequested)
-    {
-        OutputStats();
-    }
-}, cts.Token);
-*/
-
-var limit = 10_000;
-
-var tasks = new Task[8];
-
-var watch = StopwatchSlim.StartNew();
-for (var i = 0; i < 8; i++)
-{
-    tasks[i] = Task.Factory.StartNew(() =>
-    {
-        while (Interlocked.Decrement(ref limit) > 0)
-            database.InsertDocumentAsync(data).GetAwaiter().GetResult();
-    }, TaskCreationOptions.LongRunning);
-}
-
-Task.WaitAll(tasks);
-
-Console.WriteLine($"{watch.Elapsed.TotalMilliseconds:N0} ms");
+    await database.InsertDocumentAsync(data).ConfigureAwait(false);
+}).GetAwaiter().GetResult();
 
 OutputStats();
 
 database.TryShutdown();
 run.Wait();
+return;
 
 void OutputStats()
 {
-    Thread.Sleep(1000);
-    Console.WriteLine($"{DateTime.Now} - dtrx time: {database
-        .AverageTransactionExecutionTime.TotalMilliseconds} ms {database
-        .TransactionSequenceNumber:N0} transactions");
+    Console.WriteLine($"{DateTime.Now}");
+
+    Console.WriteLine(
+        $"dtrx time: {database.AverageTransactionExecutionTime.TotalMilliseconds:N0} ms");
+    Console.WriteLine(
+        $"dtrx count: {database.TransactionSequenceNumber:N0} transactions");
 
     Console.WriteLine(
         $"strx time: {MetricSink.StorageTransactions
