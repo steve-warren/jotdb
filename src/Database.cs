@@ -193,9 +193,6 @@ public sealed class Database : IDisposable
 
         if (!_flushTransactionThread.Join(3000))
             Console.WriteLine("WARNING: failed to terminate WAL loop thread.");
-
-        Console.WriteLine("journal fsync");
-        WriteAheadLog.Dispose();
     }
 
     private Task OnStoppedAsync()

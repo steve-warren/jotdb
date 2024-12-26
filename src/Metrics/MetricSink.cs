@@ -17,8 +17,37 @@ public static class MetricSink
             _bytesCommitted.Update(transaction.BytesCommitted);
         }
 
-        public static long MergedTransactionCount => _mergedTransactionCount.ReadLong();
-        public static TimeSpan ExecutionTime => _executionTime.ReadTimeSpan();
-        public static long BytesCommitted => _bytesCommitted.ReadLong();
+        public static long AverageMergedTransactionCount =>
+            _mergedTransactionCount.ReadLong();
+
+        public static TimeSpan AverageExecutionTime => _executionTime.ReadTimeSpan();
+        public static long AverageBytesCommitted => _bytesCommitted.ReadLong();
+    }
+
+    public static class WriteAheadLog
+    {
+        private static ExponentialMovingAverage _rotationTime = new();
+        private static ExponentialMovingAverage _writeTime = new();
+        private static Counter _rotationCount;
+        private static Counter _writeCount;
+
+        public static void Rotate(TimeSpan time)
+        {
+            _rotationTime.Update(time.Ticks);
+            _rotationCount.Increment();
+        }
+
+        public static void Write(TimeSpan time)
+        {
+            _writeTime.Update(time.Ticks);
+            _writeCount.Increment();
+        }
+
+        public static TimeSpan AverageRotationTime => _rotationTime.ReadTimeSpan();
+        public static TimeSpan AverageWriteTime => _writeTime
+            .ReadTimeSpan();
+
+        public static ulong RotationCount => _rotationCount.Count;
+        public static ulong WriteCount => _writeCount.Count;
     }
 }

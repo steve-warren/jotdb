@@ -81,6 +81,8 @@ public sealed class StorageTransaction
             writer.ZeroUsedBytes();
             TransactionMergeCount = walTransactionCount;
             BytesCommitted = writer.BytesWritten;
+
+            MetricSink.StorageTransactions.Apply(this);
         }
     }
 }

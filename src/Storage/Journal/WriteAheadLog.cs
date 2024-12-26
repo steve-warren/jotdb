@@ -81,13 +81,9 @@ public sealed class WriteAheadLog : IDisposable
             // merge and commit transactions from the buffer
             storageTransaction.MergeCommit(cancellationToken);
 
-            MetricSink.StorageTransactions.Apply(storageTransaction);
-
-            // here we need to check the health of the wal file
-            // and roll over if necessary.
-
             // fsync and rotate the file if necessary
             _file.Rotate();
         }
+        // ReSharper disable once FunctionNeverReturns
     }
 }

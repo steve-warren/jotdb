@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Runtime.InteropServices;
+using JotDB.Metrics;
 using JotDB.Platform.MacOS;
 using Microsoft.Win32.SafeHandles;
 
@@ -28,7 +29,7 @@ public sealed class SafeFileHandleWriteAheadLogFile : WriteAheadLogFile
         }
 
         var path = $"journal_{DateTime
-            .Now:yyyyMMddHHmmss}.txt";
+            .Now:yyyyMMddHHmmssff}.txt";
 
         var handle = File.OpenHandle(
             path: path,
@@ -63,6 +64,8 @@ public sealed class SafeFileHandleWriteAheadLogFile : WriteAheadLogFile
     {
         if (Offset < MAX_FILE_SIZE) return false;
 
+        var watch = StopwatchSlim.StartNew();
+
         var newHandle = OpenFileHandle();
 
         Offset = 0;
@@ -70,6 +73,8 @@ public sealed class SafeFileHandleWriteAheadLogFile : WriteAheadLogFile
         _fileHandle = newHandle;
         RandomAccess.FlushToDisk(oldHandle);
         oldHandle.Dispose();
+
+        MetricSink.WriteAheadLog.Rotate(watch.Elapsed);
 
         return true;
     }
@@ -83,7 +88,9 @@ public sealed class SafeFileHandleWriteAheadLogFile : WriteAheadLogFile
 
     public override void Write(ReadOnlySpan<byte> span)
     {
+        var watch = StopwatchSlim.StartNew();
         RandomAccess.Write(_fileHandle, span, Offset);
+        MetricSink.WriteAheadLog.Write(watch.Elapsed);
         Offset += span.Length;
     }
 }

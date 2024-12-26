@@ -45,45 +45,62 @@ var data =
 
 Console.WriteLine($"payload is {data.Length} bytes");
 
-_ = Task.Run(() =>
+/*_ = Task.Run(() =>
 {
     while (!cts.IsCancellationRequested)
     {
-        Thread.Sleep(1000);
-        Console.WriteLine($"{DateTime.Now} - {database
-            .AverageTransactionExecutionTime.TotalMilliseconds} ms {database
-            .TransactionSequenceNumber:N0} transactions");
-
-        Console.WriteLine(
-            $"\tstrx time: {MetricSink.StorageTransactions.ExecutionTime.TotalMilliseconds} ms");
-        Console.WriteLine(
-            $"\tstrx merged_trx_count: {MetricSink.StorageTransactions.MergedTransactionCount}");
-        Console.WriteLine(
-            $"\tstrx bytes_committed: {MetricSink.StorageTransactions.BytesCommitted:N0} bytes");
+        OutputStats();
     }
 }, cts.Token);
+*/
 
-while (!cts.IsCancellationRequested)
+var limit = 10_000;
+
+var tasks = new Task[4];
+
+var watch = StopwatchSlim.StartNew();
+for (var i = 0; i < 4; i++)
 {
-    var limit = 100;
-    var tasks = new Task[4];
-
-    var watch = StopwatchSlim.StartNew();
-    for (var i = 0; i < 4; i++)
+    tasks[i] = Task.Factory.StartNew(() =>
     {
-        tasks[i] = Task.Factory.StartNew(() =>
-        {
-            while (Interlocked.Decrement(ref limit) > 0)
-                database.InsertDocumentAsync(data).GetAwaiter().GetResult();
-        }, TaskCreationOptions.LongRunning);
-    }
-
-    Task.WaitAll(tasks);
-
-    Console.WriteLine($"{watch.Elapsed.TotalMilliseconds:N0} ms");
-
-    Thread.Sleep(1000);
+        while (Interlocked.Decrement(ref limit) > 0)
+            database.InsertDocumentAsync(data).GetAwaiter().GetResult();
+    }, TaskCreationOptions.LongRunning);
 }
+
+Task.WaitAll(tasks);
+
+Console.WriteLine($"{watch.Elapsed.TotalMilliseconds:N0} ms");
+
+OutputStats();
 
 database.TryShutdown();
 run.Wait();
+
+void OutputStats()
+{
+    Thread.Sleep(1000);
+    Console.WriteLine($"{DateTime.Now} - dtrx time: {database
+        .AverageTransactionExecutionTime.TotalMilliseconds} ms {database
+        .TransactionSequenceNumber:N0} transactions");
+
+    Console.WriteLine(
+        $"strx time: {MetricSink.StorageTransactions
+            .AverageExecutionTime.TotalMilliseconds:N0} ms");
+    Console.WriteLine(
+        $"strx merged_trx_count: {MetricSink.StorageTransactions
+            .AverageMergedTransactionCount:N0}");
+    Console.WriteLine(
+        $"strx bytes_committed: {MetricSink.StorageTransactions.AverageBytesCommitted:N0} bytes");
+    Console.WriteLine(
+        $"wal_avg_rotation_time: {MetricSink.WriteAheadLog
+            .AverageRotationTime.TotalMilliseconds:N0} ms");
+    Console.WriteLine(
+        $"wal_rotation_count: {MetricSink.WriteAheadLog
+            .RotationCount:N0} rotations");
+    Console.WriteLine(
+        $"wal_write_time: {MetricSink.WriteAheadLog.AverageWriteTime
+            .TotalMicroseconds:N0} μs");
+    Console.WriteLine(
+        $"wal_write_count: {MetricSink.WriteAheadLog.WriteCount:N0} writes");
+}
