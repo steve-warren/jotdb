@@ -4,6 +4,24 @@ namespace JotDB.Metrics;
 
 public static class MetricSink
 {
+    public static class DatabaseTransactions
+    {
+        private static Counter _transactionCount = new();
+        private static ExponentialMovingAverage _transactionExecutionTime =
+            new();
+
+        public static TimeSpan AverageTransactionExecutionTime =>
+            _transactionExecutionTime.ReadTimeSpan();
+
+        public static ulong TransactionCount => _transactionCount.Count;
+
+        public static void Apply(DatabaseTransaction transaction)
+        {
+            _transactionExecutionTime.Update(transaction.ExecutionTime.Ticks);
+            _transactionCount.Increment();
+        }
+    }
+
     public static class StorageTransactions
     {
         private static ExponentialMovingAverage _mergedTransactionCount = new();
@@ -20,7 +38,9 @@ public static class MetricSink
         public static long AverageMergedTransactionCount =>
             _mergedTransactionCount.ReadLong();
 
-        public static TimeSpan AverageExecutionTime => _executionTime.ReadTimeSpan();
+        public static TimeSpan AverageExecutionTime =>
+            _executionTime.ReadTimeSpan();
+
         public static long AverageBytesCommitted => _bytesCommitted.ReadLong();
     }
 
@@ -43,7 +63,9 @@ public static class MetricSink
             _writeCount.Increment();
         }
 
-        public static TimeSpan AverageRotationTime => _rotationTime.ReadTimeSpan();
+        public static TimeSpan AverageRotationTime =>
+            _rotationTime.ReadTimeSpan();
+
         public static TimeSpan AverageWriteTime => _writeTime
             .ReadTimeSpan();
 

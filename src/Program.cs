@@ -63,10 +63,9 @@ void OutputStats()
     Console.WriteLine($"{DateTime.Now}");
 
     Console.WriteLine(
-        $"dtrx time: {database.AverageTransactionExecutionTime.TotalMilliseconds:N0} ms");
+        $"dtrx time: {MetricSink.DatabaseTransactions.AverageTransactionExecutionTime.TotalMilliseconds:N0} ms");
     Console.WriteLine(
-        $"dtrx count: {database.TransactionSequenceNumber:N0} transactions");
-
+        $"dtrx count: {MetricSink.DatabaseTransactions.TransactionCount:N0} transactions");
     Console.WriteLine(
         $"strx time: {MetricSink.StorageTransactions
             .AverageExecutionTime.TotalMilliseconds:N0} ms");

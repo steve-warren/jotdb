@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using JotDB.Metrics;
 using JotDB.Pages;
 using JotDB.Storage;
 using JotDB.Storage.Journal;
@@ -59,6 +60,8 @@ public sealed class DatabaseTransaction : IDisposable
         await _wal.AppendAsync(this).ConfigureAwait(false);
         _pageBuffer.Write(this);
         ExecutionTime = watch.Elapsed;
+
+        MetricSink.DatabaseTransactions.Apply(this);
     }
 
     public void Dispose()

@@ -11,7 +11,6 @@ public sealed class Database : IDisposable
     private volatile DatabaseState _state = DatabaseState.Stopped;
     private readonly CancellationTokenSource _shutdownTokenSource = new();
     private readonly Thread _flushTransactionThread;
-    private ExponentialMovingAverage _transactionExecutionTimes = new();
     private ulong _transactionSequence;
 
     public Database(bool inMemory = true)
@@ -25,9 +24,6 @@ public sealed class Database : IDisposable
     }
 
     public DatabaseState State => _state;
-
-    public TimeSpan AverageTransactionExecutionTime =>
-        _transactionExecutionTimes.ReadTimeSpan();
 
     public WriteAheadLog WriteAheadLog { get; }
 
@@ -51,7 +47,6 @@ public sealed class Database : IDisposable
             transaction.AddOperation(document, DatabaseOperationType.Insert);
 
         await transaction.CommitAsync().ConfigureAwait(false);
-        _transactionExecutionTimes.Update(transaction.ExecutionTime.Ticks);
     }
 
     /// <summary>
