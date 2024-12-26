@@ -100,6 +100,6 @@ public sealed class WriteAheadLogTransaction : IDisposable
     /// <param name="after">The task after which the transaction will be committed.</param>
     public void CommitWhen(Task after)
     {
-        _awaiter.SignalCompletionAfter(after);
+        _awaiter.SignalCompletionWhen(after);
     }
 }

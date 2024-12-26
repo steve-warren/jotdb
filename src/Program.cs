@@ -45,11 +45,13 @@ var data =
 
 Console.WriteLine($"payload is {data.Length} bytes");
 
-var limit = 100_000;
+var limit = 100;
 
 Parallel.ForAsync(0, limit, cts.Token, async (i, token) =>
 {
-    await database.InsertDocumentAsync(data).ConfigureAwait(false);
+    var transaction = database.CreateTransaction();
+    transaction.AddOperation(data, DatabaseOperationType.Insert);
+    await transaction.CommitAsync().ConfigureAwait(false);
 }).GetAwaiter().GetResult();
 
 OutputStats();

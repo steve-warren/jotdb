@@ -60,7 +60,11 @@ public sealed class AsyncAwaiter : IDisposable
         _tcs.TrySetResult();
     }
 
-    public void SignalCompletionAfter(Task after)
+    /// <summary>
+    /// Signals the completion of the current task when the specified task is completed.
+    /// </summary>
+    /// <param name="after">The task after which the completion signal will be triggered.</param>
+    public void SignalCompletionWhen(Task after)
     {
         var tcsLocal = _tcs;
 

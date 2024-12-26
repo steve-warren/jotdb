@@ -38,17 +38,6 @@ public sealed class Database : IDisposable
         _backgroundWorkers.Add(worker);
     }
 
-    public async Task InsertDocumentAsync(
-        params ReadOnlyMemory<byte>[] documents)
-    {
-        using var transaction = CreateTransaction();
-
-        foreach (var document in documents)
-            transaction.AddOperation(document, DatabaseOperationType.Insert);
-
-        await transaction.CommitAsync().ConfigureAwait(false);
-    }
-
     /// <summary>
     /// Runs the database, starting all registered background workers and waits for the shutdown signal.
     /// </summary>
@@ -76,7 +65,7 @@ public sealed class Database : IDisposable
         WriteAheadLog.Dispose();
     }
 
-    private DatabaseTransaction CreateTransaction()
+    public DatabaseTransaction CreateTransaction()
     {
         var transaction = new DatabaseTransaction(15_000, WriteAheadLog)
         {
@@ -141,8 +130,6 @@ public sealed class Database : IDisposable
                     $"Failed to start background worker '{worker.Name}'. Exception: {ex}");
             }
         }
-
-        await Task.Delay(1000);
     }
 
     private Task OnRunningAsync()
@@ -150,7 +137,6 @@ public sealed class Database : IDisposable
         _state = DatabaseState.Running;
 
         Console.WriteLine("running database");
-
 
         _flushTransactionThread.Start();
 
