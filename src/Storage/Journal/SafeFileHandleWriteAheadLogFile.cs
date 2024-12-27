@@ -28,8 +28,8 @@ public sealed class SafeFileHandleWriteAheadLogFile : WriteAheadLogFile
             fileOptions |= FILE_FLAG_NO_BUFFERING;
         }
 
-        var path = $"journal_{DateTime
-            .Now:yyyyMMddHHmmssff}.txt";
+        var path = $"jotdb_{DateTime
+            .Now:yyyyMMddHHmmssff}.wal";
 
         var handle = File.OpenHandle(
             path: path,
@@ -37,7 +37,7 @@ public sealed class SafeFileHandleWriteAheadLogFile : WriteAheadLogFile
             access: FileAccess.ReadWrite,
             share: FileShare.None,
             options: fileOptions,
-            preallocationSize: 4 * 1024 * 1024);
+            preallocationSize: MAX_FILE_SIZE);
 
         if (!OperatingSystem.IsMacOS()) return handle;
 

@@ -113,33 +113,30 @@ public sealed class WriteAheadLogTransactionBuffer : IDisposable
             var spinCount = 0;
 
             tryPeek:
-            if (!_buffer._queue.TryPeek(out transaction))
+            if (_buffer._queue.TryPeek(out transaction))
+            {
+                if (_totalBytes + transaction.Size > _bytes)
+                    goto reset;
+
+                _buffer._queue.TryDequeue(out _);
+                _totalBytes += transaction.Size;
+
+                Debug.Assert(_totalBytes <= _bytes,
+                    "WAL transaction size exceeds the specified limit.");
+
+                return true;
+            }
+
+            if (spinCount < MAX_SPIN_COUNT)
             {
                 Thread.SpinWait(1);
-
-                if (spinCount < MAX_SPIN_COUNT)
-                {
-                    spinCount++;
-                    goto tryPeek;
-                }
-
-                _buffer._transactionsAvailable.Reset();
-                return false;
+                spinCount++;
+                goto tryPeek;
             }
 
-            if (_totalBytes + transaction.Size > _bytes)
-            {
-                _buffer._transactionsAvailable.Reset();
-                return false;
-            }
-
-            _buffer._queue.TryDequeue(out _);
-            _totalBytes += transaction.Size;
-
-            Debug.Assert(_totalBytes <= _bytes,
-                "WAL transaction size exceeds the specified limit.");
-
-            return true;
+            reset:
+            _buffer._transactionsAvailable.Reset();
+            return false;
         }
     }
 }

@@ -64,9 +64,9 @@ return;
 void OutputStats()
 {
     Console.WriteLine($"{DateTime.Now}");
-
+    Console.Write("\x1b[38;2;127;255;212m");
     Console.WriteLine(
-        $"dtrx avg_time: {MetricSink.DatabaseTransactions.AverageTransactionExecutionTime.TotalMilliseconds:N0} ms");
+        $"mdtrx avg_time: {MetricSink.DatabaseTransactions.AverageTransactionExecutionTime.TotalMilliseconds:N0} ms");
     Console.WriteLine(
         $"dtrx count: {MetricSink.DatabaseTransactions.TransactionCount:N0} transactions");
     Console.WriteLine(
@@ -88,4 +88,5 @@ void OutputStats()
             .TotalMicroseconds:N0} μs");
     Console.WriteLine(
         $"wal write_count: {MetricSink.WriteAheadLog.WriteCount:N0} writes");
+    Console.Write("\x1B[0m");
 }
