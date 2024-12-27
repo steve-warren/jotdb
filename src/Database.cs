@@ -65,9 +65,13 @@ public sealed class Database : IDisposable
         WriteAheadLog.Dispose();
     }
 
+    /// <summary>
+    /// Creates a new transaction within the database system with a unique sequence number.
+    /// </summary>
+    /// <returns>A new <see cref="DatabaseTransaction"/> instance, initialized with a sequence number and write-ahead log.</returns>
     public DatabaseTransaction CreateTransaction()
     {
-        var transaction = new DatabaseTransaction(15_000, WriteAheadLog)
+        var transaction = new DatabaseTransaction(WriteAheadLog)
         {
             TransactionSequenceNumber =
                 Interlocked.Increment(ref _transactionSequence)
@@ -82,7 +86,7 @@ public sealed class Database : IDisposable
 
         try
         {
-            WriteAheadLog.MonitorAndFlushBuffers(
+            WriteAheadLog.Flush(
                 _shutdownTokenSource.Token);
         }
 

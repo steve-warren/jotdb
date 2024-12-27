@@ -50,6 +50,7 @@ var limit = 100;
 Parallel.ForAsync(0, limit, cts.Token, async (i, token) =>
 {
     var transaction = database.CreateTransaction();
+    transaction.Timeout = 15_000;
     transaction.AddOperation(data, DatabaseOperationType.Insert);
     await transaction.CommitAsync().ConfigureAwait(false);
 }).GetAwaiter().GetResult();

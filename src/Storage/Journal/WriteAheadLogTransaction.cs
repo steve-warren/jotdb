@@ -15,7 +15,7 @@ namespace JotDB.Storage.Journal;
 /// </remarks>
 public sealed class WriteAheadLogTransaction : IDisposable
 {
-    private readonly AsyncAwaiter _awaiter = new();
+    private readonly AsyncAwaiter _awaiter;
 
     /// <summary>
     /// Represents a wrapper around a transaction, designed to work with a write-ahead log (WAL) mechanism.
@@ -25,8 +25,10 @@ public sealed class WriteAheadLogTransaction : IDisposable
     /// within the context of a write-ahead log. The transaction can wait for commit signals, be aborted with an exception,
     /// or commit after the completion of a specific task.
     /// </remarks>
-    public WriteAheadLogTransaction(DatabaseTransaction databaseTransaction)
+    public WriteAheadLogTransaction(
+        DatabaseTransaction databaseTransaction)
     {
+        _awaiter = new AsyncAwaiter(databaseTransaction.Timeout);
         DatabaseTransaction = databaseTransaction;
         Size = (uint)WriteAheadLogTransactionHeader.Size *
                databaseTransaction.OperationCount +

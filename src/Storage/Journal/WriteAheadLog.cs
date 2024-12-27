@@ -1,6 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
 using JotDB.Memory;
-using JotDB.Metrics;
 
 namespace JotDB.Storage.Journal;
 
@@ -34,19 +33,25 @@ public sealed class WriteAheadLog : IDisposable
         GC.SuppressFinalize(this);
     }
 
-    public async Task AppendAsync(DatabaseTransaction databaseTransaction)
+    /// <summary>
+    /// Appends a database transaction to the write-ahead log asynchronously.
+    /// </summary>
+    /// <param name="databaseTransaction">The database transaction to append to the write-ahead log. This transaction must not be null, and its size must not exceed 4096 bytes.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    /// <remarks>If the transaction size exceeds the specified limit, an exception will be thrown. This method ensures the transaction is safely added to the write-ahead log buffer.</remarks>
+    public async Task AppendAsync(
+        DatabaseTransaction databaseTransaction)
     {
         Ensure.NotNull(databaseTransaction);
         Ensure.That(
             databaseTransaction.Size <= 4096,
             "Transaction size must be less than or equal to 4096 bytes.");
 
-        using var walTransaction = new WriteAheadLogTransaction
-            (databaseTransaction);
+        using var walTransaction = new WriteAheadLogTransaction(databaseTransaction);
 
-        await _transactionBuffer.WriteTransactionAsync(walTransaction)
-            .ConfigureAwait
-                (false);
+        _transactionBuffer.Append(walTransaction);
+
+        await walTransaction.WaitForCommitAsync().ConfigureAwait(false);
     }
 
     /// <summary>
@@ -55,7 +60,7 @@ public sealed class WriteAheadLog : IDisposable
     /// <param name="cancellationToken">The token used to monitor for request cancellation and stop the operation.</param>
     /// <remarks>This method will block until a cancellation is requested.</remarks>
     [DoesNotReturn]
-    public void MonitorAndFlushBuffers(CancellationToken cancellationToken)
+    public void Flush(CancellationToken cancellationToken)
     {
         while (true)
         {

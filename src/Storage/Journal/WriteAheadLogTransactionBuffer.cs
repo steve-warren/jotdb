@@ -34,16 +34,23 @@ public sealed class WriteAheadLogTransactionBuffer : IDisposable
 
     public int Count => _queue.Count;
 
+    /// <summary>
+    /// Waits until transactions are available in the buffer or the operation is canceled.
+    /// </summary>
+    /// <param name="cancellationToken">A token to observe while waiting that allows the operation to be canceled.</param>
     public void Wait(CancellationToken cancellationToken)
     {
         _transactionsAvailable.Wait(cancellationToken);
     }
 
-    public Task WriteTransactionAsync(WriteAheadLogTransaction transaction)
+    /// <summary>
+    /// Appends a WriteAheadLogTransaction to the transaction buffer.
+    /// </summary>
+    /// <param name="transaction">The transaction to be appended to the buffer.</param>
+    public void Append(WriteAheadLogTransaction transaction)
     {
         _queue.Enqueue(transaction);
         _transactionsAvailable.Set();
-        return transaction.WaitForCommitAsync();
     }
 
     public void Dispose()

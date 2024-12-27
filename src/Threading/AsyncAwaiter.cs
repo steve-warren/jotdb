@@ -28,15 +28,26 @@ public sealed class AsyncAwaiter : IDisposable
     private readonly CancellationTokenSource _cts;
     private readonly CancellationTokenRegistration _ctr;
 
-    private TaskCompletionSource _tcs =
+    private readonly TaskCompletionSource _tcs =
         new(TaskCreationOptions.RunContinuationsAsynchronously);
 
     public AsyncAwaiter(CancellationToken cancellationToken = default)
     {
-        _ctr = cancellationToken.Register(() => _tcs.TrySetCanceled());
         _cts = CancellationTokenSource.CreateLinkedTokenSource(
             cancellationToken);
+        _ctr = _cts.Token.Register(() => _tcs.TrySetCanceled());
         _token = _cts.Token;
+    }
+
+    public AsyncAwaiter(int timeout = -1,
+        CancellationToken cancellationToken = default)
+    {
+        _cts = CancellationTokenSource.CreateLinkedTokenSource(
+            cancellationToken);
+        _ctr = _cts.Token.Register(() => _tcs.TrySetCanceled());
+        _token = _cts.Token;
+
+        _cts.CancelAfter(timeout);
     }
 
     ~AsyncAwaiter()
@@ -66,13 +77,11 @@ public sealed class AsyncAwaiter : IDisposable
     /// <param name="after">The task after which the completion signal will be triggered.</param>
     public void SignalCompletionWhen(Task after)
     {
-        var tcsLocal = _tcs;
-
         _ = after.ContinueWith((_, o) =>
             {
                 var tcs = (TaskCompletionSource)o;
                 tcs.TrySetResult();
-            }, tcsLocal, _token, TaskContinuationOptions.ExecuteSynchronously,
+            }, _tcs, _token, TaskContinuationOptions.ExecuteSynchronously,
             TaskScheduler.Current);
     }
 
@@ -85,19 +94,6 @@ public sealed class AsyncAwaiter : IDisposable
     {
         _token.ThrowIfCancellationRequested();
         return _tcs.Task;
-    }
-
-    public bool TryReset()
-    {
-        if (!_tcs.Task.IsCompleted)
-            return false;
-
-        var tcsOriginal = Interlocked.Exchange(
-            ref _tcs,
-            new TaskCompletionSource(TaskCreationOptions
-                .RunContinuationsAsynchronously));
-
-        return true;
     }
 
     public void Dispose()
