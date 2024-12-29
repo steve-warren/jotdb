@@ -51,6 +51,7 @@ public sealed class WriteAheadLog : IDisposable
 
         _transactionBuffer.Append(walTransaction);
 
+        // wait until the wal transaction has been flushed to disk
         await walTransaction.WaitForCommitAsync().ConfigureAwait(false);
     }
 

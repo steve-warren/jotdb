@@ -80,8 +80,9 @@ public sealed class WriteAheadLogTransaction : IDisposable
             var operation = DatabaseTransaction.Operations[i];
 
             var span = operation.Data.Span;
-            header.DataLength = operation.Data.Length;
+            header.DataLength = span.Length;
             header.Hash = MD5.HashData(span);
+
             writer.Write(header);
             writer.Write(span);
         }
