@@ -5,7 +5,7 @@
 
 # jotdb files
 *.jotdb
-journal_*.txt
+*.wal
 
 # dotenv files
 .env

@@ -10,8 +10,4 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>
 
-  <ItemGroup>
-    <Folder Include="Platform\Windows\" />
-  </ItemGroup>
-
 </Project>

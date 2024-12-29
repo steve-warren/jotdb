@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Runtime.InteropServices;
 using JotDB.Metrics;
 using JotDB.Platform.MacOS;
+using JotDB.Platform.Windows;
 using Microsoft.Win32.SafeHandles;
 
 namespace JotDB.Storage.Journal;
@@ -20,35 +21,17 @@ public sealed class SafeFileHandleWriteAheadLogFile : WriteAheadLogFile
 
     private static SafeFileHandle OpenFileHandle()
     {
-        var fileOptions = FileOptions.WriteThrough;
-
-        if (OperatingSystem.IsWindows())
-        {
-            const FileOptions FILE_FLAG_NO_BUFFERING = (FileOptions)0x20000000;
-            fileOptions |= FILE_FLAG_NO_BUFFERING;
-        }
-
         var path = $"jotdb_{DateTime
             .Now:yyyyMMddHHmmssff}.wal";
 
-        var handle = File.OpenHandle(
-            path: path,
-            mode: FileMode.Create,
-            access: FileAccess.ReadWrite,
-            share: FileShare.None,
-            options: fileOptions,
-            preallocationSize: MAX_FILE_SIZE);
+        if (OperatingSystem.IsWindows())
+            return WindowsWriteAheadLogFileInterop.OpenFileHandle(path, MAX_FILE_SIZE);
 
-        if (!OperatingSystem.IsMacOS()) return handle;
+        else if (OperatingSystem.IsMacOS())
+            return MacWriteAheadLogFileInterop.OpenFileHandle(path, MAX_FILE_SIZE);
 
-        const int F_NOCACHE = 48;
-
-        var fileDescriptor = handle.DangerousGetHandle().ToInt32();
-        var result = MacSyscall.fcntl(fileDescriptor, F_NOCACHE, 1);
-
-        Debug.Assert(result != -1, Marshal.GetLastPInvokeErrorMessage());
-
-        return handle;
+        else
+            throw new PlatformNotSupportedException();
     }
 
     private SafeFileHandleWriteAheadLogFile(
