@@ -60,6 +60,7 @@ public sealed class WriteAheadLogTransaction : IDisposable
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public void Write(
         ref AlignedMemoryWriter writer,
+        uint storageTransactionSequenceNumber,
         uint commitSequenceNumber,
         long timestamp)
     {
@@ -67,9 +68,10 @@ public sealed class WriteAheadLogTransaction : IDisposable
 
         var header = new WriteAheadLogTransactionHeader
         {
-            TransactionSequenceNumber =
-                DatabaseTransaction.TransactionSequenceNumber,
+            StorageTransactionSequenceNumber = storageTransactionSequenceNumber,
             CommitSequenceNumber = commitSequenceNumber,
+            DatabaseTransactionSequenceNumber =
+                DatabaseTransaction.TransactionSequenceNumber,
             TransactionType = (int)DatabaseTransaction.Type,
             Timestamp = timestamp
         };

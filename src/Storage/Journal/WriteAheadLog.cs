@@ -6,7 +6,7 @@ namespace JotDB.Storage.Journal;
 public sealed class WriteAheadLog : IDisposable
 {
     private readonly WriteAheadLogTransactionBuffer _transactionBuffer = new();
-    private ulong _storageTransactionSequence;
+    private uint _storageTransactionSequence;
     private readonly WriteAheadLogFile _file;
     private readonly AlignedMemory _fileBuffer;
 
@@ -47,7 +47,8 @@ public sealed class WriteAheadLog : IDisposable
             databaseTransaction.Size <= 4096,
             "Transaction size must be less than or equal to 4096 bytes.");
 
-        using var walTransaction = new WriteAheadLogTransaction(databaseTransaction);
+        using var walTransaction =
+            new WriteAheadLogTransaction(databaseTransaction);
 
         _transactionBuffer.Append(walTransaction);
 
@@ -72,11 +73,11 @@ public sealed class WriteAheadLog : IDisposable
             // until the buffer has transactions
             _transactionBuffer.Wait(cancellationToken);
 
-            var transactionNumber =
+            var storageTransactionNumber =
                 Interlocked.Increment(ref _storageTransactionSequence);
 
             var storageTransaction = new StorageTransaction(
-                transactionNumber: transactionNumber,
+                storageTransactionNumber: storageTransactionNumber,
                 _file,
                 _transactionBuffer,
                 _fileBuffer);

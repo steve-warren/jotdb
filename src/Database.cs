@@ -1,4 +1,5 @@
 using JotDB.Metrics;
+using JotDB.Pages;
 using JotDB.Storage;
 using JotDB.Storage.Journal;
 
@@ -16,16 +17,18 @@ public sealed class Database : IDisposable
     public Database(bool inMemory = true)
     {
         WriteAheadLog = new WriteAheadLog(inMemory);
+        PageBuffer = new PageBuffer();
         _flushTransactionThread = new Thread(WriteAheadLogWriteThread)
         {
             Priority = ThreadPriority.Highest,
-            Name = "WAL Loop"
+            Name = "WAL Writer Thread"
         };
     }
 
     public DatabaseState State => _state;
 
     public WriteAheadLog WriteAheadLog { get; }
+    public PageBuffer PageBuffer { get; }
 
     public ulong TransactionSequenceNumber =>
         Volatile.Read(ref _transactionSequence);
@@ -71,7 +74,8 @@ public sealed class Database : IDisposable
     /// <returns>A new <see cref="DatabaseTransaction"/> instance, initialized with a sequence number and write-ahead log.</returns>
     public DatabaseTransaction CreateTransaction()
     {
-        var transaction = new DatabaseTransaction(WriteAheadLog)
+        var transaction = new DatabaseTransaction(
+            WriteAheadLog)
         {
             TransactionSequenceNumber =
                 Interlocked.Increment(ref _transactionSequence)

@@ -10,9 +10,11 @@ public ref struct WriteAheadLogTransactionHeader
         .SizeOf<WriteAheadLogTransactionHeader>();
 
     [FieldOffset(0)]
-    public ulong TransactionSequenceNumber;
+    public uint StorageTransactionSequenceNumber;
+    [FieldOffset(4)]
+    public uint CommitSequenceNumber;
     [FieldOffset(8)]
-    public ulong CommitSequenceNumber;
+    public ulong DatabaseTransactionSequenceNumber;
     [FieldOffset(16)]
     public int TransactionType;
     [FieldOffset(20)]

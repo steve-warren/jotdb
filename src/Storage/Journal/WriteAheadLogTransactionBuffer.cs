@@ -50,7 +50,7 @@ public sealed class WriteAheadLogTransactionBuffer : IDisposable
     public void Append(WriteAheadLogTransaction transaction)
     {
         _queue.Enqueue(transaction);
-        
+
         // wake the writer thread to process the transaction we just placed in the queue
         _transactionsAvailable.Set();
     }

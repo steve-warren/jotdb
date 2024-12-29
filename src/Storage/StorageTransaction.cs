@@ -19,21 +19,28 @@ public sealed class StorageTransaction
     private readonly AlignedMemory _storageMemory;
 
     public StorageTransaction(
-        ulong transactionNumber,
+        uint storageTransactionNumber,
         WriteAheadLogFile writeAheadLogFile,
         WriteAheadLogTransactionBuffer transactionBuffer,
         AlignedMemory storageMemory)
     {
-        TransactionNumber = transactionNumber;
+        StorageTransactionNumber = storageTransactionNumber;
         _writeAheadLogFile = writeAheadLogFile;
         _transactionBuffer = transactionBuffer;
         _storageMemory = storageMemory;
     }
 
-    public ulong TransactionNumber { get; }
+    public uint StorageTransactionNumber { get; }
     public int TransactionMergeCount { get; private set; }
     public TimeSpan ExecutionTime { get; private set; }
     public int BytesCommitted { get; private set; }
+
+    public List<WriteAheadLogTransaction> MergedTransactions
+    {
+        get;
+        private set;
+    } =
+        [];
 
     /// <summary>
     /// Commits the current storage transaction.
@@ -44,9 +51,9 @@ public sealed class StorageTransaction
     public void MergeCommit(CancellationToken cancellationToken = default)
     {
         using var commitAwaiter = new AsyncAwaiter(cancellationToken);
-        var commitSequenceNumber = 0U;
         var writer = new AlignedMemoryWriter(_storageMemory);
         var transactionMergeCount = 0;
+        var commitTransactionSequence = 0U;
 
         try
         {
@@ -63,9 +70,12 @@ public sealed class StorageTransaction
                 transactionMergeCount++;
                 transaction.Write(
                     ref writer,
-                    ++commitSequenceNumber,
+                    StorageTransactionNumber,
+                    ++commitTransactionSequence,
                     now);
                 transaction.CommitWhen(after: commitAwaiter.CompletedTask);
+
+                MergedTransactions.Add(transaction);
             }
 
             _writeAheadLogFile.Write(writer.AlignedSpan);

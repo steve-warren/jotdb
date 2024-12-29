@@ -16,7 +16,6 @@ namespace JotDB;
 public sealed class DatabaseTransaction
 {
     private readonly WriteAheadLog _wal;
-    private readonly PageBuffer _pageBuffer = new();
     private uint _operationSequenceNumber = 0;
 
     public DatabaseTransaction(
@@ -27,7 +26,6 @@ public sealed class DatabaseTransaction
 
     public int Timeout { get; set; } = -1;
     public ulong TransactionSequenceNumber { get; init; }
-    public ReadOnlyMemory<byte> Data { get; set; }
     public TransactionType Type { get; set; }
     public TimeSpan ExecutionTime { get; private set; }
     public uint Size { get; private set; }
@@ -57,7 +55,6 @@ public sealed class DatabaseTransaction
         var watch = Stopwatch.StartNew();
         await _wal.AppendAsync(this).ConfigureAwait
             (false);
-        _pageBuffer.Write(this);
         ExecutionTime = watch.Elapsed;
 
         MetricSink.DatabaseTransactions.Apply(this);
