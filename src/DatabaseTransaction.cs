@@ -29,33 +29,36 @@ public sealed class DatabaseTransaction
     public TransactionType Type { get; set; }
     public TimeSpan ExecutionTime { get; private set; }
     public uint Size { get; private set; }
-    public uint OperationCount { get; private set; }
-    public List<DatabaseOperation> Operations { get; } = [];
+    public uint CommandCount { get; private set; }
+    public List<DatabaseCommand> Commands { get; } = [];
 
-    public DatabaseOperation AddOperation(
+    public DatabaseCommand CreateCommand(
         ReadOnlyMemory<byte> data,
         DatabaseOperationType type)
     {
-        var operation = new DatabaseOperation(
+        var command = new DatabaseCommand(
             ++_operationSequenceNumber,
             TransactionSequenceNumber,
             data,
             type);
 
-        Operations.Add(operation);
+        Commands.Add(command);
 
         Size += (uint)data.Length;
-        OperationCount++;
+        CommandCount++;
 
-        return operation;
+        return command;
     }
 
     public async Task CommitAsync()
     {
-        var watch = Stopwatch.StartNew();
+        var commitTime = Stopwatch.StartNew();
+
+        // wait for the WAL thread to write the transaction to disk.
         await _wal.AppendAsync(this).ConfigureAwait
             (false);
-        ExecutionTime = watch.Elapsed;
+
+        ExecutionTime = commitTime.Elapsed;
 
         MetricSink.DatabaseTransactions.Apply(this);
     }

@@ -7,7 +7,7 @@ public sealed class WriteAheadLog : IDisposable
 {
     private readonly WriteAheadLogTransactionBuffer _transactionBuffer = new();
     private readonly Queue<WriteAheadLogTransaction> _completedBuffer = new(1024);
-    private uint _storageTransactionSequence;
+    private uint _storageTransactionSequenceNumber;
     private readonly WriteAheadLogFile _file;
     private readonly AlignedMemory _fileBuffer;
 
@@ -70,11 +70,11 @@ public sealed class WriteAheadLog : IDisposable
         // until the buffer has transactions
         _transactionBuffer.Wait(cancellationToken);
 
-        var storageTransactionNumber =
-            Interlocked.Increment(ref _storageTransactionSequence);
+        var storageTransactionSequenceNumber =
+            Interlocked.Increment(ref _storageTransactionSequenceNumber);
 
         var storageTransaction = new StorageTransaction(
-            storageTransactionNumber,
+            storageTransactionSequenceNumber,
             _file,
             _transactionBuffer,
             _completedBuffer,
@@ -84,7 +84,7 @@ public sealed class WriteAheadLog : IDisposable
         cancellationToken.ThrowIfCancellationRequested();
 
         // merge and commit transactions from the buffer
-        storageTransaction.MergeCommit(cancellationToken);
+        storageTransaction.Commit(cancellationToken);
 
         // fsync and rotate the file if necessary
         _file.Rotate();

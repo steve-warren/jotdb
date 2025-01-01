@@ -20,20 +20,20 @@ public sealed class StorageTransaction
     private readonly AlignedMemory _storageMemory;
 
     public StorageTransaction(
-        uint storageTransactionNumber,
+        uint storageTransactionSequenceNumber,
         WriteAheadLogFile writeAheadLogFile,
         WriteAheadLogTransactionBuffer transactionBuffer,
         Queue<WriteAheadLogTransaction> completedBuffer,
         AlignedMemory storageMemory)
     {
-        StorageTransactionNumber = storageTransactionNumber;
+        StorageTransactionSequenceNumber = storageTransactionSequenceNumber;
         _writeAheadLogFile = writeAheadLogFile;
         _transactionBuffer = transactionBuffer;
         _completedBuffer = completedBuffer;
         _storageMemory = storageMemory;
     }
 
-    public uint StorageTransactionNumber { get; }
+    public uint StorageTransactionSequenceNumber { get; }
     public int TransactionMergeCount { get; private set; }
     public TimeSpan ExecutionTime { get; private set; }
     public int BytesCommitted { get; private set; }
@@ -44,12 +44,12 @@ public sealed class StorageTransaction
     /// to storage and properly handled before signaling completion.
     /// </summary>
     /// <param name="cancellationToken">A token to observe while waiting for the task to complete.</param>
-    public void MergeCommit(CancellationToken cancellationToken = default)
+    public void Commit(CancellationToken cancellationToken = default)
     {
         using var commitAwaiter = new AsyncAwaiter(cancellationToken);
         var writer = new AlignedMemoryWriter(_storageMemory);
         var transactionMergeCount = 0;
-        var commitTransactionSequence = 0U;
+        var commitSequenceNumber = 0U;
 
         try
         {
@@ -66,10 +66,11 @@ public sealed class StorageTransaction
                 transactionMergeCount++;
                 transaction.Write(
                     ref writer,
-                    StorageTransactionNumber,
-                    ++commitTransactionSequence,
+                    StorageTransactionSequenceNumber,
+                    ++commitSequenceNumber,
                     now);
-                transaction.CommitWhen(after: commitAwaiter.CompletedTask);
+
+                transaction.Commit(when: commitAwaiter.CompletedTask);
 
                 _completedBuffer.Enqueue(transaction);
             }

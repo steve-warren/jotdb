@@ -31,7 +31,7 @@ public sealed class WriteAheadLogTransaction : IDisposable
         _awaiter = new AsyncAwaiter(databaseTransaction.Timeout);
         DatabaseTransaction = databaseTransaction;
         Size = (uint)WriteAheadLogTransactionHeader.Size *
-               databaseTransaction.OperationCount +
+               databaseTransaction.CommandCount +
                databaseTransaction
                    .Size;
     }
@@ -77,9 +77,9 @@ public sealed class WriteAheadLogTransaction : IDisposable
         };
 
         // ReSharper disable once ForCanBeConvertedToForeach
-        for(var i = 0; i < DatabaseTransaction.Operations.Count; i++)
+        for(var i = 0; i < DatabaseTransaction.Commands.Count; i++)
         {
-            var operation = DatabaseTransaction.Operations[i];
+            var operation = DatabaseTransaction.Commands[i];
 
             var span = operation.Data.Span;
             header.DataLength = span.Length;
@@ -102,9 +102,9 @@ public sealed class WriteAheadLogTransaction : IDisposable
     /// This method allows deferring the commit operation of a transaction until a given task is completed.
     /// It leverages the asynchronous awaiter mechanism to signal the completion of the transaction.
     /// </remarks>
-    /// <param name="after">The task after which the transaction will be committed.</param>
-    public void CommitWhen(Task after)
+    /// <param name="when">The task after which the transaction will be committed.</param>
+    public void Commit(Task when)
     {
-        _awaiter.SignalCompletionWhen(after);
+        _awaiter.SignalCompletionWhen(when);
     }
 }
