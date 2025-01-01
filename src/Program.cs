@@ -1,4 +1,5 @@
-﻿using JotDB;
+﻿using System.Diagnostics;
+using JotDB;
 using JotDB.Metrics;
 
 using var database = new Database(inMemory: false);
@@ -46,18 +47,24 @@ var data =
 Console.WriteLine($"payload is {data.Length} bytes");
 
 var limit = 100;
+var totalTime = Stopwatch.StartNew();
 
 Parallel.ForAsync(0, limit, cts.Token, async (i, token) =>
 {
     var transaction = database.CreateTransaction();
     transaction.Timeout = 15_000;
 
-    var command = transaction.CreateCommand(data, DatabaseOperationType.Insert);
+    var command = transaction.CreateCommand(DatabaseOperationType.Insert, data);
 
     command.Execute();
-    
+ 
     await transaction.CommitAsync().ConfigureAwait(false);
 }).GetAwaiter().GetResult();
+
+var elapsed = totalTime.Elapsed;
+
+Console.WriteLine($"Completed {limit} transactions in {elapsed.TotalSeconds} s");
+Console.WriteLine($"{limit / elapsed.TotalSeconds} transactions per second.");
 
 OutputStats();
 

@@ -11,12 +11,12 @@ public enum DatabaseCommandStatus
 
 public sealed class DatabaseCommand
 {
-    public DatabaseCommand(uint operationSequenceNumber,
+    public DatabaseCommand(uint commandSequenceNumber,
         ulong transactionSequenceNumber,
         ReadOnlyMemory<byte> data,
         DatabaseOperationType type)
     {
-        OperationSequenceNumber = operationSequenceNumber;
+        CommandSequenceNumber = commandSequenceNumber;
         TransactionSequenceNumber = transactionSequenceNumber;
         Data = data;
         Type = type;
@@ -24,7 +24,7 @@ public sealed class DatabaseCommand
 
     public DatabaseCommandStatus Status { get; private set; } = DatabaseCommandStatus.Created;
     public TimeSpan ExecutionTime { get; private set; }
-    public uint OperationSequenceNumber { get; }
+    public uint CommandSequenceNumber { get; }
     public ulong TransactionSequenceNumber { get; }
     public ReadOnlyMemory<byte> Data { get; }
     public DatabaseOperationType Type { get; }
@@ -33,8 +33,6 @@ public sealed class DatabaseCommand
     {
         Status = DatabaseCommandStatus.Executing;
         var executionTime = StopwatchSlim.StartNew();
-        Console.WriteLine(
-            $"Executing operation {Type}: OSN: {OperationSequenceNumber} TSN: {TransactionSequenceNumber}");
         ExecutionTime = executionTime.Elapsed;
         Status = DatabaseCommandStatus.Executed;
     }

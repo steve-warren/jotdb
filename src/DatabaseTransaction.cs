@@ -16,7 +16,7 @@ namespace JotDB;
 public sealed class DatabaseTransaction
 {
     private readonly WriteAheadLog _wal;
-    private uint _operationSequenceNumber = 0;
+    private uint _commandSequenceNumber = 0;
 
     public DatabaseTransaction(
         WriteAheadLog wal)
@@ -33,11 +33,11 @@ public sealed class DatabaseTransaction
     public List<DatabaseCommand> Commands { get; } = [];
 
     public DatabaseCommand CreateCommand(
-        ReadOnlyMemory<byte> data,
-        DatabaseOperationType type)
+        DatabaseOperationType type,
+        ReadOnlyMemory<byte> data)
     {
         var command = new DatabaseCommand(
-            ++_operationSequenceNumber,
+            ++_commandSequenceNumber,
             TransactionSequenceNumber,
             data,
             type);
