@@ -16,17 +16,20 @@ public sealed class StorageTransaction
 {
     private readonly WriteAheadLogFile _writeAheadLogFile;
     private readonly WriteAheadLogTransactionBuffer _transactionBuffer;
+    private readonly Queue<WriteAheadLogTransaction> _completedBuffer;
     private readonly AlignedMemory _storageMemory;
 
     public StorageTransaction(
         uint storageTransactionNumber,
         WriteAheadLogFile writeAheadLogFile,
         WriteAheadLogTransactionBuffer transactionBuffer,
+        Queue<WriteAheadLogTransaction> completedBuffer,
         AlignedMemory storageMemory)
     {
         StorageTransactionNumber = storageTransactionNumber;
         _writeAheadLogFile = writeAheadLogFile;
         _transactionBuffer = transactionBuffer;
+        _completedBuffer = completedBuffer;
         _storageMemory = storageMemory;
     }
 
@@ -34,13 +37,6 @@ public sealed class StorageTransaction
     public int TransactionMergeCount { get; private set; }
     public TimeSpan ExecutionTime { get; private set; }
     public int BytesCommitted { get; private set; }
-
-    public List<WriteAheadLogTransaction> MergedTransactions
-    {
-        get;
-        private set;
-    } =
-        [];
 
     /// <summary>
     /// Commits the current storage transaction.
@@ -75,7 +71,7 @@ public sealed class StorageTransaction
                     now);
                 transaction.CommitWhen(after: commitAwaiter.CompletedTask);
 
-                MergedTransactions.Add(transaction);
+                _completedBuffer.Enqueue(transaction);
             }
 
             _writeAheadLogFile.Write(writer.AlignedSpan);
