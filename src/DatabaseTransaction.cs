@@ -1,7 +1,7 @@
 using System.Diagnostics;
 using JotDB.Metrics;
-using JotDB.Pages;
 using JotDB.Storage;
+using JotDB.Storage.Documents;
 using JotDB.Storage.Journal;
 
 namespace JotDB;
@@ -15,12 +15,15 @@ namespace JotDB;
 /// </remarks>
 public sealed class DatabaseTransaction
 {
+    private readonly PageCollection _pages;
     private readonly WriteAheadLog _wal;
     private uint _commandSequenceNumber = 0;
 
     public DatabaseTransaction(
+        PageCollection pages,
         WriteAheadLog wal)
     {
+        _pages = pages;
         _wal = wal;
     }
 
@@ -36,7 +39,11 @@ public sealed class DatabaseTransaction
         DatabaseOperationType type,
         ReadOnlyMemory<byte> data)
     {
+        // snapshot isolation: each transaction has
+        // its own snapshot of the entire database
+
         var command = new DatabaseCommand(
+            _pages,
             ++_commandSequenceNumber,
             TransactionSequenceNumber,
             data,

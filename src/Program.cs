@@ -2,7 +2,7 @@
 using JotDB;
 using JotDB.Metrics;
 
-using var database = new Database(inMemory: false);
+using var database = new Database(inMemory: true);
 var run = database.RunAsync();
 var cts = new CancellationTokenSource();
 
@@ -75,7 +75,7 @@ return;
 void OutputStats()
 {
     Console.WriteLine($"{DateTime.Now}");
-    Console.Write("\x1b[38;2;127;255;212m");
+    Console.Write("\e[38;2;127;255;212m");
     Console.WriteLine(
         $"dtrx avg_time: {MetricSink.DatabaseTransactions.AverageTransactionExecutionTime.TotalMilliseconds:N4} ms");
     Console.WriteLine(
@@ -99,5 +99,5 @@ void OutputStats()
             .TotalMicroseconds:N4} μs");
     Console.WriteLine(
         $"wal write_count: {MetricSink.WriteAheadLog.WriteCount:N0} writes");
-    Console.Write("\x1B[0m");
+    Console.Write("\e[0m");
 }

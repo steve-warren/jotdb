@@ -3,13 +3,14 @@ using System.Runtime.InteropServices;
 using JotDB.Metrics;
 using JotDB.Platform.MacOS;
 using JotDB.Platform.Windows;
+using JotDB.Storage.Documents;
 using Microsoft.Win32.SafeHandles;
 
 namespace JotDB.Storage.Journal;
 
 public sealed class SafeFileHandleWriteAheadLogFile : WriteAheadLogFile
 {
-    private const int MAX_FILE_SIZE = 4 * 1024 * 1024;
+    private static readonly int MAX_FILE_SIZE = Capacity.Int32.Mebibytes(4);
 
     private SafeFileHandle _fileHandle;
 

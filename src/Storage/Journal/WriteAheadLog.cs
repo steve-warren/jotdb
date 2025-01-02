@@ -1,5 +1,6 @@
 using System.Diagnostics.CodeAnalysis;
 using JotDB.Memory;
+using JotDB.Storage.Documents;
 
 namespace JotDB.Storage.Journal;
 
@@ -17,7 +18,7 @@ public sealed class WriteAheadLog : IDisposable
             ? new NullWriteAheadLogFile()
             : SafeFileHandleWriteAheadLogFile.Open();
 
-        _fileBuffer = AlignedMemory.Allocate(4 * 1024 * 1024);
+        _fileBuffer = AlignedMemory.Allocate(Capacity.UIntPtr.Kibibytes(4));
     }
 
     ~WriteAheadLog()
@@ -45,10 +46,10 @@ public sealed class WriteAheadLog : IDisposable
     {
         Ensure.NotNull(databaseTransaction);
         Ensure.That(
-            databaseTransaction.Size <= 4096,
+            databaseTransaction.Size <= Capacity.Kibibytes(4),
             "Transaction size must be less than or equal to 4096 bytes.");
 
-        using var walTransaction =
+        var walTransaction =
             new WriteAheadLogTransaction(databaseTransaction);
 
         _transactionBuffer.Append(walTransaction);

@@ -1,6 +1,6 @@
-using JotDB.Metrics;
 using JotDB.Pages;
 using JotDB.Storage;
+using JotDB.Storage.Documents;
 using JotDB.Storage.Journal;
 
 namespace JotDB;
@@ -17,6 +17,7 @@ public sealed class Database : IDisposable
     public Database(bool inMemory = true)
     {
         WriteAheadLog = new WriteAheadLog(inMemory);
+        Pages = new PageCollection();
         PageBuffer = new PageBuffer();
         _flushTransactionThread = new Thread(WriteAheadLogWriteThread)
         {
@@ -26,8 +27,8 @@ public sealed class Database : IDisposable
     }
 
     public DatabaseState State => _state;
-
     public WriteAheadLog WriteAheadLog { get; }
+    public PageCollection Pages { get; }
     public PageBuffer PageBuffer { get; }
 
     public ulong TransactionSequenceNumber =>
@@ -65,6 +66,7 @@ public sealed class Database : IDisposable
 
     public void Dispose()
     {
+        Pages.Dispose();
         WriteAheadLog.Dispose();
     }
 
@@ -75,6 +77,7 @@ public sealed class Database : IDisposable
     public DatabaseTransaction CreateTransaction()
     {
         var transaction = new DatabaseTransaction(
+            Pages,
             WriteAheadLog)
         {
             TransactionSequenceNumber =

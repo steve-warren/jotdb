@@ -55,7 +55,7 @@ public sealed class StorageTransaction
         {
             var now = DateTime.UtcNow.Ticks;
             using var enumerator =
-                new WriteAheadLogTransactionBuffer.Enumerator(
+                new WriteAheadLogTransactionBuffer.ConsumableEnumerator(
                     _transactionBuffer,
                     _storageMemory.Size);
 

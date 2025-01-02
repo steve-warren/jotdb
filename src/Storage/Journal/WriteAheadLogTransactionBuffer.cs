@@ -78,7 +78,7 @@ public sealed class WriteAheadLogTransactionBuffer : IDisposable
     /// </threadsafety>
     /// <seealso cref="WriteAheadLogTransactionBuffer" />
     /// <seealso cref="JotDB.Storage.Journal.WriteAheadLogTransaction" />
-    public ref struct Enumerator
+    public ref struct ConsumableEnumerator
     {
         const int MAX_SPIN_COUNT = 10;
 
@@ -87,7 +87,7 @@ public sealed class WriteAheadLogTransactionBuffer : IDisposable
         private uint _totalBytes = 0U;
         private bool _disposed;
 
-        public Enumerator(
+        public ConsumableEnumerator(
             WriteAheadLogTransactionBuffer buffer,
             int bytes)
         {
