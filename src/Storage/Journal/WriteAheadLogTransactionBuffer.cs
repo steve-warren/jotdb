@@ -25,7 +25,7 @@ namespace JotDB.Storage.Journal;
 public sealed class WriteAheadLogTransactionBuffer : IDisposable
 {
     private readonly ConcurrentQueue<WriteAheadLogTransaction> _queue = new();
-    private readonly ManualResetEventSlim _transactionsAvailable = new(false);
+    private readonly SemaphoreSlim _transactionsAvailable = new(0);
 
     ~WriteAheadLogTransactionBuffer()
     {
@@ -49,10 +49,16 @@ public sealed class WriteAheadLogTransactionBuffer : IDisposable
     /// <param name="transaction">The transaction to be appended to the buffer.</param>
     public void Append(WriteAheadLogTransaction transaction)
     {
-        _queue.Enqueue(transaction);
+        try
+        {
+            _queue.Enqueue(transaction);
+        }
 
-        // wake the writer thread to process the transaction we just placed in the queue
-        _transactionsAvailable.Set();
+        finally
+        {
+            // wake the writer thread to process the transaction we just placed in the queue
+            _transactionsAvailable.Release();
+        }
     }
 
     public void Dispose()
@@ -101,12 +107,6 @@ public sealed class WriteAheadLogTransactionBuffer : IDisposable
                 return;
 
             _disposed = true;
-
-            if (_buffer._queue.IsEmpty)
-                _buffer._transactionsAvailable.Reset();
-            else
-                Console.WriteLine(
-                    "WAL transactions are still pending in the buffer when calling Enumerator.Dispose().");
         }
 
         public bool MoveNext(
@@ -118,7 +118,7 @@ public sealed class WriteAheadLogTransactionBuffer : IDisposable
             if (_buffer._queue.TryPeek(out transaction))
             {
                 if (_totalBytes + transaction.Size > _bytes)
-                    goto reset;
+                    return false;
 
                 _buffer._queue.TryDequeue(out _);
                 _totalBytes += transaction.Size;
@@ -129,16 +129,10 @@ public sealed class WriteAheadLogTransactionBuffer : IDisposable
                 return true;
             }
 
-            if (spinCount < MAX_SPIN_COUNT)
-            {
-                Thread.SpinWait(1);
-                spinCount++;
-                goto tryPeek;
-            }
-
-            reset:
-            _buffer._transactionsAvailable.Reset();
-            return false;
+            if (spinCount >= MAX_SPIN_COUNT) return false;
+            Thread.SpinWait(1);
+            spinCount++;
+            goto tryPeek;
         }
     }
 }
