@@ -5,7 +5,7 @@ namespace JotDB;
 public static partial class ExecutionStrategy
 {
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static void Update(DatabaseCommand command)
+    private static void Update(DatabaseCommand command)
     {
         throw new NotImplementedException();
     }

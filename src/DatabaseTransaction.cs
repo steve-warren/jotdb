@@ -15,15 +15,15 @@ namespace JotDB;
 /// </remarks>
 public sealed class DatabaseTransaction
 {
-    private readonly PageCollection _pages;
+    private readonly PageCollection _pageCollection;
     private readonly WriteAheadLog _wal;
     private uint _commandSequenceNumber = 0;
 
     public DatabaseTransaction(
-        PageCollection pages,
+        PageCollection pageCollection,
         WriteAheadLog wal)
     {
-        _pages = pages;
+        _pageCollection = pageCollection;
         _wal = wal;
     }
 
@@ -35,7 +35,7 @@ public sealed class DatabaseTransaction
     public uint CommandCount { get; private set; }
     public List<DatabaseCommand> Commands { get; } = [];
 
-    public DatabaseCommand CreateCommand(
+    public void EnlistCommand(
         DatabaseCommandType type,
         ReadOnlyMemory<byte> data)
     {
@@ -43,6 +43,7 @@ public sealed class DatabaseTransaction
         // its own snapshot of the entire database
 
         var command = new DatabaseCommand(
+            _pageCollection,
             ++_commandSequenceNumber,
             TransactionSequenceNumber,
             data,
@@ -52,8 +53,12 @@ public sealed class DatabaseTransaction
 
         Size += (uint)data.Length;
         CommandCount++;
+    }
 
-        return command;
+    public void Execute()
+    {
+        foreach (var command in Commands)
+            command.Execute();
     }
 
     public async Task CommitAsync()
@@ -67,5 +72,10 @@ public sealed class DatabaseTransaction
         ExecutionTime = commitTime.Elapsed;
 
         MetricSink.DatabaseTransactions.Apply(this);
+    }
+
+    public Task RollbackAsync()
+    {
+        throw new NotImplementedException();
     }
 }

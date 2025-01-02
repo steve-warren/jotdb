@@ -1,9 +1,21 @@
+using JotDB.Storage.Documents;
+
 namespace JotDB;
 
 public static class DatabaseCommandExecutor
 {
-    public static void Execute(DatabaseCommand databaseCommand)
+    public static void Execute(
+        PageCollection pageCollection,
+        DatabaseCommand databaseCommand)
     {
-        ExecutionStrategy.Execute(databaseCommand);
+        try
+        {
+            ExecutionStrategy.Execute(pageCollection, databaseCommand);
+        }
+
+        catch
+        {
+            throw;
+        }
     }
 }

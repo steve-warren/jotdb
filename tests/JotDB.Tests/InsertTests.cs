@@ -47,10 +47,10 @@ public class InsertTests : IAsyncLifetime
     {
         var transaction = _database.CreateTransaction();
 
-        var command = transaction.CreateCommand(DatabaseCommandType.Insert, _data);
+        transaction.EnlistCommand(DatabaseCommandType.Insert,
+            _data);
 
-        command.Execute();
-
+        transaction.Execute();
         await transaction.CommitAsync();
     }
 
@@ -59,9 +59,12 @@ public class InsertTests : IAsyncLifetime
     {
         var transaction = _database.CreateTransaction();
 
-        var command = transaction.CreateCommand(DatabaseCommandType.Insert, _data);
-        command.Execute();
+        transaction.EnlistCommand(DatabaseCommandType.Insert,
+            _data);
+        transaction.EnlistCommand(DatabaseCommandType.Insert,
+            _data);
 
+        transaction.Execute();
         await transaction.CommitAsync();
     }
 }

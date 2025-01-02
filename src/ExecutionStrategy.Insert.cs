@@ -1,12 +1,17 @@
 using System.Runtime.CompilerServices;
+using JotDB.Storage.Documents;
 
 namespace JotDB;
 
 public static partial class ExecutionStrategy
 {
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static void Insert(DatabaseCommand command)
+    private static void Insert(
+        PageCollection pageCollection,
+        DatabaseCommand command)
     {
-        // no-op
+        using var page = pageCollection.Allocate();
+
+        page.Write(command.Data.Span);
     }
 }
