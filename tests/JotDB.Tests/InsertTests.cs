@@ -47,7 +47,7 @@ public class InsertTests : IAsyncLifetime
     {
         var transaction = _database.CreateTransaction();
 
-        var command = transaction.CreateCommand(DatabaseOperationType.Insert, _data);
+        var command = transaction.CreateCommand(DatabaseCommandType.Insert, _data);
 
         command.Execute();
 
@@ -59,7 +59,7 @@ public class InsertTests : IAsyncLifetime
     {
         var transaction = _database.CreateTransaction();
 
-        var command = transaction.CreateCommand(DatabaseOperationType.Insert, _data);
+        var command = transaction.CreateCommand(DatabaseCommandType.Insert, _data);
         command.Execute();
 
         await transaction.CommitAsync();

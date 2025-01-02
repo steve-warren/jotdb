@@ -16,29 +16,29 @@ public sealed class DatabaseCommand
         uint commandSequenceNumber,
         ulong transactionSequenceNumber,
         ReadOnlyMemory<byte> data,
-        DatabaseOperationType type)
+        DatabaseCommandType commandType)
     {
         CommandSequenceNumber = commandSequenceNumber;
         TransactionSequenceNumber = transactionSequenceNumber;
         Data = data;
-        Type = type;
+        CommandType = commandType;
     }
 
-    public DatabaseCommandStatus Status { get; private set; } = DatabaseCommandStatus.Created;
+    public DatabaseCommandStatus CommandStatus { get; private set; } = DatabaseCommandStatus.Created;
     public TimeSpan ExecutionTime { get; private set; }
     public uint CommandSequenceNumber { get; }
     public ulong TransactionSequenceNumber { get; }
     public ReadOnlyMemory<byte> Data { get; }
-    public DatabaseOperationType Type { get; }
+    public DatabaseCommandType CommandType { get; }
 
     public void Execute()
     {
-        Status = DatabaseCommandStatus.Executing;
+        CommandStatus = DatabaseCommandStatus.Executing;
         var executionTime = StopwatchSlim.StartNew();
 
         DatabaseCommandExecutor.Execute(this);
         
         ExecutionTime = executionTime.Elapsed;
-        Status = DatabaseCommandStatus.Executed;
+        CommandStatus = DatabaseCommandStatus.Executed;
     }
 }

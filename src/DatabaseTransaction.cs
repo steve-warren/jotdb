@@ -36,7 +36,7 @@ public sealed class DatabaseTransaction
     public List<DatabaseCommand> Commands { get; } = [];
 
     public DatabaseCommand CreateCommand(
-        DatabaseOperationType type,
+        DatabaseCommandType type,
         ReadOnlyMemory<byte> data)
     {
         // snapshot isolation: each transaction has

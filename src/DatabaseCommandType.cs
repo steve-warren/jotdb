@@ -1,6 +1,6 @@
 namespace JotDB;
 
-public enum DatabaseOperationType
+public enum DatabaseCommandType
 {
     Insert = 0,
     Update = 1,

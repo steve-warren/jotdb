@@ -54,7 +54,7 @@ Parallel.ForAsync(0, limit, cts.Token, async (i, token) =>
     var transaction = database.CreateTransaction();
     transaction.Timeout = 15_000;
 
-    var command = transaction.CreateCommand(DatabaseOperationType.Insert, data);
+    var command = transaction.CreateCommand(DatabaseCommandType.Insert, data);
 
     command.Execute();
  
