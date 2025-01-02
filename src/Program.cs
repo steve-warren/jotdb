@@ -49,14 +49,14 @@ Console.WriteLine($"payload is {data.Length} bytes");
 const int limit = 100;
 var totalTime = Stopwatch.StartNew();
 
-await Parallel.ForAsync(0, limit, cts.Token, async (i, token) =>
+Parallel.ForAsync(0, limit, cts.Token, async (i, token) =>
 {
     var transaction = database.CreateTransaction();
     transaction.Timeout = 15_000;
 
     transaction.EnlistCommand(DatabaseCommandType.Insert, data);
-    await transaction.CommitAsync();
-});
+    await transaction.CommitAsync().ConfigureAwait(false);
+}).GetAwaiter().GetResult();
 
 var elapsed = totalTime.Elapsed;
 
