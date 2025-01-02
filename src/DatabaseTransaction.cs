@@ -55,15 +55,12 @@ public sealed class DatabaseTransaction
         CommandCount++;
     }
 
-    public void Execute()
-    {
-        foreach (var command in Commands)
-            command.Execute();
-    }
-
     public async Task CommitAsync()
     {
         var commitTime = Stopwatch.StartNew();
+
+        foreach (var command in Commands)
+            command.Execute();
 
         // wait for the WAL thread to write the transaction to disk.
         await _wal.AppendAsync(this).ConfigureAwait

@@ -50,7 +50,6 @@ public class InsertTests : IAsyncLifetime
         transaction.EnlistCommand(DatabaseCommandType.Insert,
             _data);
 
-        transaction.Execute();
         await transaction.CommitAsync();
     }
 
@@ -64,7 +63,6 @@ public class InsertTests : IAsyncLifetime
         transaction.EnlistCommand(DatabaseCommandType.Insert,
             _data);
 
-        transaction.Execute();
         await transaction.CommitAsync();
     }
 }
