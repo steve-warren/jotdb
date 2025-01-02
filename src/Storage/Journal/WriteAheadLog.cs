@@ -49,7 +49,7 @@ public sealed class WriteAheadLog : IDisposable
             databaseTransaction.Size <= Capacity.Kibibytes(4),
             "Transaction size must be less than or equal to 4096 bytes.");
 
-        var walTransaction =
+        using var walTransaction =
             new WriteAheadLogTransaction(databaseTransaction);
 
         _transactionBuffer.Append(walTransaction);
