@@ -43,7 +43,6 @@ public sealed class DatabaseTransaction
         // its own snapshot of the entire database
 
         var command = new DatabaseCommand(
-            _pages,
             ++_commandSequenceNumber,
             TransactionSequenceNumber,
             data,

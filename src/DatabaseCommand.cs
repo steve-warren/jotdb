@@ -12,16 +12,12 @@ public enum DatabaseCommandStatus
 
 public sealed class DatabaseCommand
 {
-    private readonly PageCollection _pages;
-
     public DatabaseCommand(
-        PageCollection pages,
         uint commandSequenceNumber,
         ulong transactionSequenceNumber,
         ReadOnlyMemory<byte> data,
         DatabaseOperationType type)
     {
-        _pages = pages;
         CommandSequenceNumber = commandSequenceNumber;
         TransactionSequenceNumber = transactionSequenceNumber;
         Data = data;
@@ -40,9 +36,7 @@ public sealed class DatabaseCommand
         Status = DatabaseCommandStatus.Executing;
         var executionTime = StopwatchSlim.StartNew();
 
-        using var page = _pages.Allocate();
-        
-        page.Write(Data.Span);
+        DatabaseCommandExecutor.Execute(this);
         
         ExecutionTime = executionTime.Elapsed;
         Status = DatabaseCommandStatus.Executed;
