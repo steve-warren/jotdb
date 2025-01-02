@@ -18,7 +18,7 @@ public sealed class WriteAheadLog : IDisposable
             ? new NullWriteAheadLogFile()
             : SafeFileHandleWriteAheadLogFile.Open();
 
-        _fileBuffer = AlignedMemory.Allocate(Capacity.UIntPtr.Kibibytes(4));
+        _fileBuffer = AlignedMemory.Allocate(Capacity.UIntPtr.Mebibytes(4));
     }
 
     ~WriteAheadLog()
