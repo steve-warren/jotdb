@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using JotDB.Memory;
 using JotDB.Storage.Documents;
@@ -7,7 +8,10 @@ namespace JotDB.Storage.Journal;
 public sealed class WriteAheadLog : IDisposable
 {
     private readonly WriteAheadLogTransactionBuffer _transactionBuffer = new();
-    private readonly Queue<WriteAheadLogTransaction> _completedBuffer = new(1024);
+
+    private readonly Queue<WriteAheadLogTransaction> _completedBuffer =
+        new(1024);
+
     private uint _storageTransactionSequenceNumber;
     private readonly WriteAheadLogFile _file;
     private readonly AlignedMemory _fileBuffer;
@@ -64,30 +68,30 @@ public sealed class WriteAheadLog : IDisposable
     /// <param name="cancellationToken">The token used to monitor for request cancellation and stop the operation.</param>
     public void Flush(CancellationToken cancellationToken)
     {
-        // early check
-        cancellationToken.ThrowIfCancellationRequested();
+        while (cancellationToken.IsCancellationRequested is false)
+        {
+            // block the current thread
+            // until the buffer has transactions
+            _transactionBuffer.Wait(cancellationToken);
 
-        // block the current thread
-        // until the buffer has transactions
-        _transactionBuffer.Wait(cancellationToken);
+            var storageTransactionSequenceNumber =
+                Interlocked.Increment(ref _storageTransactionSequenceNumber);
 
-        var storageTransactionSequenceNumber =
-            Interlocked.Increment(ref _storageTransactionSequenceNumber);
+            var storageTransaction = new StorageTransaction(
+                storageTransactionSequenceNumber,
+                _file,
+                _transactionBuffer,
+                _completedBuffer,
+                _fileBuffer);
 
-        var storageTransaction = new StorageTransaction(
-            storageTransactionSequenceNumber,
-            _file,
-            _transactionBuffer,
-            _completedBuffer,
-            _fileBuffer);
+            // early check
+            cancellationToken.ThrowIfCancellationRequested();
 
-        // early check
-        cancellationToken.ThrowIfCancellationRequested();
+            // merge and commit transactions from the buffer
+            storageTransaction.Commit(cancellationToken);
 
-        // merge and commit transactions from the buffer
-        storageTransaction.Commit(cancellationToken);
-
-        // fsync and rotate the file if necessary
-        _file.Rotate();
+            // fsync and rotate the file if necessary
+            _file.Rotate();
+        }
     }
 }

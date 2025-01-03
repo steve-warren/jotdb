@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
+using JotDB.Threading;
 
 namespace JotDB.Storage.Journal;
 
@@ -25,7 +26,8 @@ namespace JotDB.Storage.Journal;
 public sealed class WriteAheadLogTransactionBuffer : IDisposable
 {
     private readonly ConcurrentQueue<WriteAheadLogTransaction> _queue = new();
-    private readonly SemaphoreSlim _transactionsAvailable = new(0);
+    private readonly AtomicManualResetEventSlim _transactionsAvailable = new
+        (false);
 
     ~WriteAheadLogTransactionBuffer()
     {
@@ -49,16 +51,10 @@ public sealed class WriteAheadLogTransactionBuffer : IDisposable
     /// <param name="transaction">The transaction to be appended to the buffer.</param>
     public void Append(WriteAheadLogTransaction transaction)
     {
-        try
-        {
-            _queue.Enqueue(transaction);
-        }
+        _queue.Enqueue(transaction);
 
-        finally
-        {
-            // wake the writer thread to process the transaction we just placed in the queue
-            _transactionsAvailable.Release();
-        }
+        // wake the writer thread to process the transaction we just placed in the queue
+        _transactionsAvailable.Set();
     }
 
     public void Dispose()
@@ -121,6 +117,7 @@ public sealed class WriteAheadLogTransactionBuffer : IDisposable
                     return false;
 
                 _buffer._queue.TryDequeue(out _);
+
                 _totalBytes += transaction.Size;
 
                 Debug.Assert(_totalBytes <= _bytes,
@@ -129,7 +126,12 @@ public sealed class WriteAheadLogTransactionBuffer : IDisposable
                 return true;
             }
 
-            if (spinCount >= MAX_SPIN_COUNT) return false;
+            if (spinCount >= MAX_SPIN_COUNT)
+            {
+                _buffer._transactionsAvailable.TryReset();
+                return false;
+            }
+
             Thread.SpinWait(1);
             spinCount++;
             goto tryPeek;

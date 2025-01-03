@@ -93,11 +93,8 @@ public sealed class Database : IDisposable
 
         try
         {
-            while (true)
-            {
-                WriteAheadLog.Flush(
-                    _shutdownTokenSource.Token);
-            }
+            WriteAheadLog.Flush(
+                _shutdownTokenSource.Token);
         }
 
         catch (OperationCanceledException)
