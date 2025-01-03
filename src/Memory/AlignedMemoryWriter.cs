@@ -58,7 +58,7 @@ public ref struct AlignedMemoryWriter
     /// Thrown if the calculated aligned size exceeds the size of the memory buffer.
     /// </exception>
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public readonly void ZeroUnusedBytesAligned()
+    public readonly void ZeroPaddingBytesAligned()
     {
         // round to nearest 4KiB number
         var alignedSize = (BytesWritten + 4095) & ~4095;

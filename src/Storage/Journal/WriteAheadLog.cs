@@ -8,10 +8,6 @@ namespace JotDB.Storage.Journal;
 public sealed class WriteAheadLog : IDisposable
 {
     private readonly WriteAheadLogTransactionBuffer _transactionBuffer = new();
-
-    private readonly Queue<WriteAheadLogTransaction> _completedBuffer =
-        new(1024);
-
     private uint _storageTransactionSequenceNumber;
     private readonly WriteAheadLogFile _file;
     private readonly AlignedMemory _fileBuffer;
@@ -83,7 +79,6 @@ public sealed class WriteAheadLog : IDisposable
                 storageTransactionSequenceNumber,
                 _file,
                 _transactionBuffer,
-                _completedBuffer,
                 _fileBuffer);
 
             // early check

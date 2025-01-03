@@ -16,20 +16,17 @@ public sealed class StorageTransaction
 {
     private readonly WriteAheadLogFile _writeAheadLogFile;
     private readonly WriteAheadLogTransactionBuffer _transactionBuffer;
-    private readonly Queue<WriteAheadLogTransaction> _completedBuffer;
     private readonly AlignedMemory _storageMemory;
 
     public StorageTransaction(
         uint storageTransactionSequenceNumber,
         WriteAheadLogFile writeAheadLogFile,
         WriteAheadLogTransactionBuffer transactionBuffer,
-        Queue<WriteAheadLogTransaction> completedBuffer,
         AlignedMemory storageMemory)
     {
         StorageTransactionSequenceNumber = storageTransactionSequenceNumber;
         _writeAheadLogFile = writeAheadLogFile;
         _transactionBuffer = transactionBuffer;
-        _completedBuffer = completedBuffer;
         _storageMemory = storageMemory;
     }
 
@@ -71,8 +68,6 @@ public sealed class StorageTransaction
                     now);
 
                 transaction.Commit(when: commitAwaiter.CompletedTask);
-
-                _completedBuffer.Enqueue(transaction);
             }
 
             _writeAheadLogFile.Write(writer.AlignedSpan);
@@ -84,8 +79,8 @@ public sealed class StorageTransaction
             // signal all waiting tasks that their transactions are completed.
             commitAwaiter.SignalCompletion();
 
-            // clear the bytes used
-            writer.ZeroUsedBytes();
+            // clear only the padded bytes
+            writer.ZeroPaddingBytesAligned();
             TransactionMergeCount = transactionMergeCount;
             BytesCommitted = writer.BytesWritten;
 
