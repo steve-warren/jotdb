@@ -99,6 +99,10 @@ public sealed class Database : IDisposable
 
         catch (OperationCanceledException)
         {
+        }
+
+        finally
+        {
             Console.WriteLine("WAL write thread shut down.");
         }
     }

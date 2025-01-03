@@ -26,8 +26,9 @@ namespace JotDB.Storage.Journal;
 public sealed class WriteAheadLogTransactionBuffer : IDisposable
 {
     private readonly ConcurrentQueue<WriteAheadLogTransaction> _queue = new();
-    private readonly AtomicManualResetEventSlim _transactionsAvailable = new
-        (false);
+
+    private readonly SemaphoreSlim _transactionsAvailable = new
+        (0);
 
     ~WriteAheadLogTransactionBuffer()
     {
@@ -54,7 +55,7 @@ public sealed class WriteAheadLogTransactionBuffer : IDisposable
         _queue.Enqueue(transaction);
 
         // wake the writer thread to process the transaction we just placed in the queue
-        _transactionsAvailable.Set();
+        _transactionsAvailable.Release();
     }
 
     public void Dispose()
@@ -117,6 +118,7 @@ public sealed class WriteAheadLogTransactionBuffer : IDisposable
                     return false;
 
                 _buffer._queue.TryDequeue(out _);
+                _buffer._transactionsAvailable.Wait(0);
 
                 _totalBytes += transaction.Size;
 
@@ -128,7 +130,6 @@ public sealed class WriteAheadLogTransactionBuffer : IDisposable
 
             if (spinCount >= MAX_SPIN_COUNT)
             {
-                _buffer._transactionsAvailable.TryReset();
                 return false;
             }
 

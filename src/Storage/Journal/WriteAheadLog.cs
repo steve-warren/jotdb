@@ -72,7 +72,9 @@ public sealed class WriteAheadLog : IDisposable
         {
             // block the current thread
             // until the buffer has transactions
+            Debug.WriteLine("WAL Thread > waiting for transactions");
             _transactionBuffer.Wait(cancellationToken);
+            Debug.WriteLine("WAL Thread > processing transactions");
 
             var storageTransactionSequenceNumber =
                 Interlocked.Increment(ref _storageTransactionSequenceNumber);

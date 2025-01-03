@@ -46,7 +46,7 @@ var data =
 
 Console.WriteLine($"payload is {data.Length} bytes");
 
-const int limit = 1_000_000;
+const int limit = 10;
 var totalTime = Stopwatch.StartNew();
 
 Parallel.ForAsync(0, limit, cts.Token, async (i, token) =>
