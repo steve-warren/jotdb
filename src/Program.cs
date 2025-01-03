@@ -1,8 +1,21 @@
 ﻿using System.Diagnostics;
 using JotDB;
+using JotDB.Configuration;
 using JotDB.Metrics;
+using JotDB.Storage.Journal;
+using Microsoft.Extensions.Configuration;
 
-using var database = new Database(inMemory: true);
+var config = new ConfigurationBuilder()
+    .AddJsonFile("appsettings.json")
+    .Build();
+
+var walOptions = config.GetRequiredSection("wal")
+    .Get<WriteAheadLogOptions>();
+
+var wal = new WriteAheadLog(walOptions!);
+
+using var database = new Database(wal);
+
 var run = database.RunAsync();
 var cts = new CancellationTokenSource();
 
@@ -60,7 +73,8 @@ Parallel.ForAsync(0, limit, cts.Token, async (i, token) =>
 
 var elapsed = totalTime.Elapsed;
 
-Console.WriteLine($"Completed {limit} transactions in {elapsed.TotalSeconds} s");
+Console.WriteLine(
+    $"Completed {limit} transactions in {elapsed.TotalSeconds} s");
 Console.WriteLine($"{limit / elapsed.TotalSeconds} transactions per second.");
 
 OutputStats();

@@ -1,5 +1,5 @@
 using System.Diagnostics;
-using System.Diagnostics.CodeAnalysis;
+using JotDB.Configuration;
 using JotDB.Memory;
 using JotDB.Storage.Documents;
 
@@ -12,9 +12,9 @@ public sealed class WriteAheadLog : IDisposable
     private readonly WriteAheadLogFile _file;
     private readonly AlignedMemory _fileBuffer;
 
-    public WriteAheadLog(bool inMemory)
+    public WriteAheadLog(WriteAheadLogOptions options)
     {
-        _file = inMemory
+        _file = options.Mode == "in-memory"
             ? new NullWriteAheadLogFile()
             : SafeFileHandleWriteAheadLogFile.Open();
 

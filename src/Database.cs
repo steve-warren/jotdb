@@ -14,9 +14,9 @@ public sealed class Database : IDisposable
     private readonly Thread _flushTransactionThread;
     private ulong _transactionSequence;
 
-    public Database(bool inMemory = true)
+    public Database(WriteAheadLog writeAheadLog)
     {
-        WriteAheadLog = new WriteAheadLog(inMemory);
+        WriteAheadLog = writeAheadLog;
         Pages = new PageCollection();
         PageBuffer = new PageBuffer();
         _flushTransactionThread = new Thread(WriteAheadLogWriteThread)

@@ -1,8 +1,15 @@
+using JotDB.Configuration;
+using JotDB.Storage.Journal;
+
 namespace JotDB.Tests;
 
 public class InsertTests : IAsyncLifetime
 {
-    private readonly Database _database = new(inMemory: true);
+    private readonly Database _database = new(new WriteAheadLog(
+        new WriteAheadLogOptions
+        {
+            Mode = "in-memory"
+        }));
     private readonly Task _run;
 
     private readonly ReadOnlyMemory<byte> _data =
