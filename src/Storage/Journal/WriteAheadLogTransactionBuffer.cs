@@ -54,7 +54,7 @@ public sealed class WriteAheadLogTransactionBuffer : IDisposable
     {
         _queue.Enqueue(transaction);
 
-        // wake the writer thread to process the transaction we just placed in the queue
+        // increment the semaphore once
         _transactionsAvailable.Release();
     }
 
@@ -118,6 +118,8 @@ public sealed class WriteAheadLogTransactionBuffer : IDisposable
                     return false;
 
                 _buffer._queue.TryDequeue(out _);
+
+                // decrement the semaphore once
                 _buffer._transactionsAvailable.Wait(0);
 
                 _totalBytes += transaction.Size;
@@ -129,9 +131,7 @@ public sealed class WriteAheadLogTransactionBuffer : IDisposable
             }
 
             if (spinCount >= MAX_SPIN_COUNT)
-            {
                 return false;
-            }
 
             Thread.SpinWait(1);
             spinCount++;

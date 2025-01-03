@@ -48,6 +48,8 @@ public sealed class SafeFileHandleWriteAheadLogFile : WriteAheadLogFile
     {
         if (Offset < MAX_FILE_SIZE) return false;
 
+        // todo: we could perform the rotation asynchronously
+
         var watch = StopwatchSlim.StartNew();
 
         var newHandle = OpenFileHandle();
