@@ -7,6 +7,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "JotDB", "src\JotDB.csproj",
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "JotDB.Tests", "tests\JotDB.Tests\JotDB.Tests.csproj", "{BCF4F7A9-ED36-4156-9C0A-199F1D541FA1}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "JotDB.Host", "JotDB.Host\JotDB.Host.csproj", "{79EB7A9C-0338-406A-88A7-51AFB4E84A80}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -24,5 +26,9 @@ Global
 		{BCF4F7A9-ED36-4156-9C0A-199F1D541FA1}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{BCF4F7A9-ED36-4156-9C0A-199F1D541FA1}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{BCF4F7A9-ED36-4156-9C0A-199F1D541FA1}.Release|Any CPU.Build.0 = Release|Any CPU
+		{79EB7A9C-0338-406A-88A7-51AFB4E84A80}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{79EB7A9C-0338-406A-88A7-51AFB4E84A80}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{79EB7A9C-0338-406A-88A7-51AFB4E84A80}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{79EB7A9C-0338-406A-88A7-51AFB4E84A80}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal
