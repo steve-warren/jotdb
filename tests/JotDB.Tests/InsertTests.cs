@@ -3,7 +3,7 @@ using JotDB.Storage.Journal;
 
 namespace JotDB.Tests;
 
-public class InsertTests : IAsyncLifetime
+public partial class InsertTests : IAsyncLifetime
 {
     private readonly Database _database = new(new WriteAheadLog(
         new WriteAheadLogOptions
@@ -48,28 +48,4 @@ public class InsertTests : IAsyncLifetime
     }
 
     public Task InitializeAsync() => Task.CompletedTask;
-
-    [Fact]
-    public async Task InsertSingle()
-    {
-        var transaction = _database.CreateTransaction();
-
-        transaction.EnlistCommand(DatabaseCommandType.Insert,
-            _data);
-
-        await transaction.CommitAsync();
-    }
-
-    [Fact]
-    public async Task InsertMultiple()
-    {
-        var transaction = _database.CreateTransaction();
-
-        transaction.EnlistCommand(DatabaseCommandType.Insert,
-            _data);
-        transaction.EnlistCommand(DatabaseCommandType.Insert,
-            _data);
-
-        await transaction.CommitAsync();
-    }
 }
