@@ -1,6 +1,4 @@
-﻿using JotDB.Memory;
-
-namespace JotDB.Pages;
+﻿namespace JotDB.Core;
 
 public sealed class CircularList<T>
 {
@@ -28,15 +26,5 @@ public sealed class CircularList<T>
             Console.WriteLine($"inserting into position {_head}");
             _head = (_head + 1) & (Size - 1);
         }
-    }
-}
-
-public sealed class PageBuffer
-{
-    private CircularList<ulong> _cache = new(4096);
-
-    public void Write(DatabaseTransaction transaction)
-    {
-        _cache.Add(transaction.TransactionSequenceNumber);
     }
 }

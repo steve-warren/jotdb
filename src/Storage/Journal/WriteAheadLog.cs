@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using JotDB.Configuration;
+using JotDB.Core;
 using JotDB.Memory;
 using JotDB.Storage.Documents;
 

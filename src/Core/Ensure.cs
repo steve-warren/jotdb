@@ -2,7 +2,7 @@ using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
 
-namespace JotDB;
+namespace JotDB.Core;
 
 /// <summary>
 /// Contains methods for ensuring that arguments passed to a method meet certain criteria.

@@ -1,4 +1,3 @@
-using JotDB.Pages;
 using JotDB.Storage;
 using JotDB.Storage.Documents;
 using JotDB.Storage.Journal;
@@ -18,7 +17,6 @@ public sealed class Database : IDisposable
     {
         WriteAheadLog = writeAheadLog;
         Pages = new PageCollection();
-        PageBuffer = new PageBuffer();
         _flushTransactionThread = new Thread(WriteAheadLogWriteThread)
         {
             Priority = ThreadPriority.Highest,
@@ -29,7 +27,6 @@ public sealed class Database : IDisposable
     public DatabaseState State => _state;
     public WriteAheadLog WriteAheadLog { get; }
     public PageCollection Pages { get; }
-    public PageBuffer PageBuffer { get; }
 
     public ulong TransactionSequenceNumber =>
         Volatile.Read(ref _transactionSequence);
