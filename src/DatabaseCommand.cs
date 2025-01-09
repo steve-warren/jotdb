@@ -48,5 +48,7 @@ public sealed class DatabaseCommand
 
         ExecutionTime = executionTime.Elapsed;
         CommandStatus = DatabaseCommandStatus.Executed;
+
+        MetricSink.DatabaseCommands.Apply(this);
     }
 }

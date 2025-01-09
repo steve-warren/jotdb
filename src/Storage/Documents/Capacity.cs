@@ -9,16 +9,16 @@ public static class Capacity
     private const long BytesPerGibibyte = 1024 * 1024 * 1024;
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static long Mebibytes(long mebibytes) =>
-        mebibytes * BytesPerMebibyte;
+    public static long Mebibytes(long capacity) =>
+        capacity * BytesPerMebibyte;
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static long Kibibytes(long kibibytes) =>
-        kibibytes * BytesPerKibibyte;
+    public static long Kibibytes(long capacity) =>
+        capacity * BytesPerKibibyte;
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static long Gibibytes(long gibibytes) =>
-        gibibytes * BytesPerGibibyte;
+    public static long Gibibytes(long capacity) =>
+        capacity * BytesPerGibibyte;
 
     public static class Int32
     {

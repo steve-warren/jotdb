@@ -4,9 +4,27 @@ namespace JotDB.Metrics;
 
 public static class MetricSink
 {
+    public static class DatabaseCommands
+    {
+        private static Counter _commandCount;
+        private static ExponentialMovingAverage _commandExecutionTime = new();
+
+        public static ulong CommandCount => _commandCount.Count;
+
+        public static TimeSpan AverageExecutionTime =>
+            _commandExecutionTime.ReadTimeSpan();
+
+        public static void Apply(DatabaseCommand command)
+        {
+            _commandExecutionTime.Update(command.ExecutionTime.Ticks);
+            _commandCount.Increment();
+        }
+    }
+
     public static class DatabaseTransactions
     {
         private static Counter _transactionCount = new();
+
         private static ExponentialMovingAverage _transactionExecutionTime =
             new();
 

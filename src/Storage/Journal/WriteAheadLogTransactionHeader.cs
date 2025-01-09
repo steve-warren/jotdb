@@ -4,7 +4,7 @@ using System.Runtime.InteropServices;
 namespace JotDB.Storage.Journal;
 
 [StructLayout(LayoutKind.Explicit, Pack = 1)]
-public ref struct WriteAheadLogTransactionHeader
+public unsafe struct WriteAheadLogTransactionHeader
 {
     public static readonly int Size = Unsafe
         .SizeOf<WriteAheadLogTransactionHeader>();
@@ -23,5 +23,5 @@ public ref struct WriteAheadLogTransactionHeader
     public long Timestamp;
     [FieldOffset(32)]
     [MarshalAs(UnmanagedType.ByValArray, SizeConst = 16)]
-    public byte[] Hash;
+    public fixed byte Hash[16];
 }

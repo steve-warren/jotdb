@@ -10,8 +10,8 @@ public static partial class ExecutionStrategy
         PageCollection pageCollection,
         DatabaseCommand command)
     {
-        using var page = pageCollection.Allocate();
+        using var page = pageCollection.Root;
 
-        page.Write(command.Data.Span);
+        page.TryWrite(command.Data.Span);
     }
 }

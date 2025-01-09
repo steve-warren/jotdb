@@ -59,7 +59,7 @@ var data =
 
 Console.WriteLine($"payload is {data.Length} bytes");
 
-const int limit = 10;
+const int limit = 100;
 var totalTime = Stopwatch.StartNew();
 
 Parallel.ForAsync(0, limit, cts.Token, async (i, token) =>
@@ -110,5 +110,9 @@ void OutputStats()
             .TotalMicroseconds:N4} μs");
     Console.WriteLine(
         $"wal write_count: {MetricSink.WriteAheadLog.WriteCount:N0} writes");
+    Console.WriteLine(
+        $"cmd_count: {MetricSink.DatabaseCommands.CommandCount:N0} commands");
+    Console.WriteLine(
+        $"cmd_avg_time: {MetricSink.DatabaseCommands.AverageExecutionTime.TotalMilliseconds:N4} ms");
     Console.Write("\e[0m");
 }

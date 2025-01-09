@@ -58,7 +58,7 @@ public sealed class WriteAheadLogTransaction : IDisposable
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public void Write(
+    public unsafe void Write(
         ref AlignedMemoryWriter writer,
         uint storageTransactionSequenceNumber,
         uint commitSequenceNumber,
@@ -66,27 +66,30 @@ public sealed class WriteAheadLogTransaction : IDisposable
     {
         CommitSequenceNumber = commitSequenceNumber;
 
-        var header = new WriteAheadLogTransactionHeader
-        {
-            StorageTransactionSequenceNumber = storageTransactionSequenceNumber,
-            CommitSequenceNumber = commitSequenceNumber,
-            DatabaseTransactionSequenceNumber =
-                DatabaseTransaction.TransactionSequenceNumber,
-            TransactionType = (int)DatabaseTransaction.Type,
-            Timestamp = timestamp
-        };
+        WriteAheadLogTransactionHeader header;
+        var p = &header;
+
+        p->StorageTransactionSequenceNumber =
+            storageTransactionSequenceNumber;
+        p->CommitSequenceNumber = commitSequenceNumber;
+        p->DatabaseTransactionSequenceNumber =
+            DatabaseTransaction.TransactionSequenceNumber;
+        p->TransactionType = (int) DatabaseTransaction.Type;
+        p->Timestamp = timestamp;
 
         // ReSharper disable once ForCanBeConvertedToForeach
         for(var i = 0; i < DatabaseTransaction.Commands.Count; i++)
         {
             var operation = DatabaseTransaction.Commands[i];
 
-            var span = operation.Data.Span;
-            header.DataLength = span.Length;
-            header.Hash = MD5.HashData(span);
+            var data = operation.Data.Span;
+            p->DataLength = data.Length;
 
-            writer.Write(header);
-            writer.Write(span);
+            var hash = new Span<byte>(p->Hash, MD5.HashSizeInBytes);
+            MD5.HashData(data, hash);
+
+            writer.Write(p);
+            writer.Write(data);
         }
     }
 

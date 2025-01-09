@@ -1,19 +1,18 @@
 using System.IO.MemoryMappedFiles;
-using System.Runtime.CompilerServices;
-using Microsoft.Win32.SafeHandles;
 
 namespace JotDB.Storage.Documents;
 
 public sealed class Page : IDisposable
 {
-    private readonly MemoryMappedViewAccessor _mmap;
+    private ulong _offset;
+    private readonly MemoryMappedViewAccessor _memoryMap;
 
     public Page(
         int number,
-        MemoryMappedViewAccessor mmap)
+        MemoryMappedViewAccessor memoryMap)
     {
         Number = number;
-        _mmap = mmap;
+        _memoryMap = memoryMap;
     }
 
     ~Page()
@@ -23,17 +22,35 @@ public sealed class Page : IDisposable
 
     public void Dispose()
     {
-        _mmap.Dispose();
+        _memoryMap.Dispose();
 
         GC.SuppressFinalize(this);
     }
 
     public int Number { get; }
+    public long Size => _memoryMap.Capacity;
+    public long BytesWritten => (long) _offset;
+    public bool IsFull => BytesWritten >= _memoryMap.Capacity;
 
-    public void Write(ReadOnlySpan<byte> buffer)
+    public long BytesAvailable =>
+        _memoryMap.Capacity - BytesWritten;
+
+    public bool TryWrite(ReadOnlySpan<byte> buffer)
     {
-        _mmap.SafeMemoryMappedViewHandle.WriteSpan(0, buffer);
+        if (buffer.Length > BytesAvailable)
+            return false;
+
+        _memoryMap.SafeMemoryMappedViewHandle.WriteSpan(_offset, buffer);
+        _offset += (ulong)buffer.Length;
+
+        return true;
     }
+
+    public double GetFillPercentage() =>
+        BytesWritten / (double)_memoryMap.Capacity * 100;
+
+    public double GetFragmentationPercentage() =>
+        (1 - BytesWritten / (double)_memoryMap.Capacity) * 100;
 }
 
 public sealed class PageCollection : IDisposable
@@ -46,7 +63,9 @@ public sealed class PageCollection : IDisposable
     {
         _file = MemoryMappedFile.CreateNew(
             null,
-            Capacity.Mebibytes(4));
+            Capacity.Mebibytes(256));
+
+        Root = Allocate();
     }
 
     ~PageCollection()
@@ -60,6 +79,8 @@ public sealed class PageCollection : IDisposable
 
         GC.SuppressFinalize(this);
     }
+    
+    public Page Root { get; private set; }
 
     public Page Allocate()
     {

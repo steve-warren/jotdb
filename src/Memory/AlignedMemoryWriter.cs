@@ -84,11 +84,17 @@ public ref struct AlignedMemoryWriter
         BytesWritten += Unsafe.SizeOf<T>();
     }
 
-    public void Write(ReadOnlySpan<byte> buffer)
+    public unsafe void Write<T>(T* value) where T : unmanaged
+    {
+        Unsafe.Write(Memory.Pointer, *value);
+        BytesWritten += Unsafe.SizeOf<T>();
+    }
+
+    public void Write(ReadOnlySpan<byte> source)
     {
         var span = Memory.Span;
-        buffer.CopyTo(span[BytesWritten..]);
-        BytesWritten += buffer.Length;
+        source.CopyTo(span[BytesWritten..]);
+        BytesWritten += source.Length;
     }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]

@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
+using System.Runtime.CompilerServices;
 using JotDB.Threading;
 
 namespace JotDB.Storage.Journal;
@@ -53,9 +54,21 @@ public sealed class WriteAheadLogTransactionBuffer : IDisposable
     public void Append(WriteAheadLogTransaction transaction)
     {
         _queue.Enqueue(transaction);
+        SignalTransactionEnqueued();
+    }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void SignalTransactionEnqueued()
+    {
         // increment the semaphore once
         _transactionsAvailable.Release();
+    }
+
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
+    private void SignalTransactionDequeued()
+    {
+        // decrement the semaphore once without blocking
+        _transactionsAvailable.Wait(0);
     }
 
     public void Dispose()
@@ -118,9 +131,7 @@ public sealed class WriteAheadLogTransactionBuffer : IDisposable
                     return false;
 
                 _buffer._queue.TryDequeue(out _);
-
-                // decrement the semaphore once
-                _buffer._transactionsAvailable.Wait(0);
+                _buffer.SignalTransactionDequeued();
 
                 _totalBytes += transaction.Size;
 
