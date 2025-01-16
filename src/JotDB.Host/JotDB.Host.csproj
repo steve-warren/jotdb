@@ -14,7 +14,7 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\src\JotDB.csproj" />
+      <ProjectReference Include="..\JotDB.Core\JotDB.csproj" />
     </ItemGroup>
 
     <ItemGroup>

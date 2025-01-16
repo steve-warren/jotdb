@@ -21,7 +21,7 @@
     </ItemGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\..\src\JotDB.csproj" />
+      <ProjectReference Include="..\..\src\JotDB.Core\JotDB.csproj" />
     </ItemGroup>
 
 </Project>
