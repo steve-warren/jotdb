@@ -1,5 +1,4 @@
 using System.Diagnostics;
-using JotDB.Core;
 using JotDB.Metrics;
 using JotDB.Storage;
 using JotDB.Storage.Documents;
@@ -72,7 +71,7 @@ public sealed class DatabaseTransaction
         MetricSink.DatabaseTransactions.Apply(this);
     }
 
-    public Task RollbackAsync()
+    public Task AbortAsync()
     {
         throw new NotImplementedException();
     }

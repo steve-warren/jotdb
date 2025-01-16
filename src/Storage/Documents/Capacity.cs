@@ -9,16 +9,16 @@ public static class Capacity
     private const long BytesPerGibibyte = 1024 * 1024 * 1024;
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static long Mebibytes(long capacity) =>
-        capacity * BytesPerMebibyte;
+    public static long Mebibytes(long mebibytes) =>
+        checked(mebibytes * BytesPerMebibyte);
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static long Kibibytes(long capacity) =>
-        capacity * BytesPerKibibyte;
+    public static long Kibibytes(long kibibytes) =>
+        checked(kibibytes * BytesPerKibibyte);
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    public static long Gibibytes(long capacity) =>
-        capacity * BytesPerGibibyte;
+    public static long Gibibytes(long gibibytes) =>
+        checked(gibibytes * BytesPerGibibyte);
 
     public static class Int32
     {
@@ -28,15 +28,15 @@ public static class Capacity
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int Mebibytes(int mebibytes) =>
-            mebibytes * Int32BytesPerMebibyte;
+            checked(mebibytes * Int32BytesPerMebibyte);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int Kibibytes(int kibibytes) =>
-            kibibytes * Int32BytesPerKibibyte;
+            checked(kibibytes * Int32BytesPerKibibyte);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static int Gibibytes(int gibibytes) =>
-            gibibytes * Int32BytesPerGibibyte;
+            checked(gibibytes * Int32BytesPerGibibyte);
     }
 
     public static class UIntPtr
@@ -47,14 +47,14 @@ public static class Capacity
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static nuint Mebibytes(nuint mebibytes) =>
-            mebibytes * UIntPtrBytesPerMebibyte;
+            checked(mebibytes * UIntPtrBytesPerMebibyte);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static nuint Kibibytes(nuint kibibytes) =>
-            kibibytes * UIntPtrBytesPerKibibyte;
+            checked(kibibytes * UIntPtrBytesPerKibibyte);
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public static nuint Gibibytes(nuint gibibytes) =>
-            gibibytes * UIntPtrBytesPerGibibyte;
+            checked(gibibytes * UIntPtrBytesPerGibibyte);
     }
 }

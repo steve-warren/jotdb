@@ -8,7 +8,9 @@ public static class MacWriteAheadLogFileInterop
 {
     const int F_NOCACHE = 48;
 
-    public static SafeFileHandle OpenFileHandle(string path, int preallocationSize)
+    public static SafeFileHandle OpenFileHandle(
+        string path,
+        int preallocationSize)
     {
         var handle = File.OpenHandle(
             path: path,

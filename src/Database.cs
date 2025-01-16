@@ -13,9 +13,12 @@ public sealed class Database : IDisposable
     private readonly Thread _flushTransactionThread;
     private ulong _transactionSequence;
 
-    public Database(WriteAheadLog writeAheadLog)
+    public Database(
+        WriteAheadLog writeAheadLog,
+        DocumentCollection documentCollection)
     {
         WriteAheadLog = writeAheadLog;
+        Documents = documentCollection;
         Pages = new PageCollection();
         _flushTransactionThread = new Thread(WriteAheadLogWriteThread)
         {
@@ -27,6 +30,7 @@ public sealed class Database : IDisposable
     public DatabaseState State => _state;
     public WriteAheadLog WriteAheadLog { get; }
     public PageCollection Pages { get; }
+    public DocumentCollection Documents { get; }
 
     public ulong TransactionSequenceNumber =>
         Volatile.Read(ref _transactionSequence);

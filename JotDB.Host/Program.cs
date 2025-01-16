@@ -2,6 +2,7 @@
 using JotDB;
 using JotDB.Configuration;
 using JotDB.Metrics;
+using JotDB.Storage.Documents;
 using JotDB.Storage.Journal;
 using Microsoft.Extensions.Configuration;
 
@@ -13,8 +14,8 @@ var walOptions = config.GetRequiredSection("wal")
     .Get<WriteAheadLogOptions>();
 
 var wal = new WriteAheadLog(walOptions!);
-
-using var database = new Database(wal);
+var documents = new DocumentCollection("root");
+using var database = new Database(wal, documents);
 
 var run = database.RunAsync();
 var cts = new CancellationTokenSource();
@@ -43,18 +44,31 @@ AppDomain.CurrentDomain.UnhandledException += (_, _) =>
 
 var data =
     """
-          {
-            "transaction_id": 1,
-            "transaction_date": "8/1/2022",
-            "transaction_amount": 7908.04,
-            "transaction_type": "transfer",
-            "account_number": 5106756131,
-            "merchant_name": "Skalith",
-            "transaction_category": "entertainment",
-            "transaction_description": "justo aliquam quis turpis eget elit sodales scelerisque mauris sit amet eros suspendisse accumsan tortor quis",
-            "card_type": "amex",
-            "location": "PO Box 70107"
-          }
+        [
+        {
+        "transaction_id": 1,
+        "transaction_date": "8/1/2022",
+        "transaction_amount": 7908.04,
+        "transaction_type": "transfer",
+        "account_number": 5106756131,
+        "merchant_name": "Skalith",
+        "transaction_category": "entertainment",
+        "transaction_description": "justo aliquam quis turpis eget elit sodales scelerisque mauris sit amet eros suspendisse accumsan tortor quis",
+        "card_type": "amex",
+        "location": "PO Box 70107"
+        },
+        {
+        "transaction_id": 2,
+        "transaction_date": "1/28/2022",
+        "transaction_amount": 627.91,
+        "transaction_type": "withdrawal",
+        "account_number": 2666541771,
+        "merchant_name": "Rhyzio",
+        "transaction_category": "shopping",
+        "transaction_description": "turpis adipiscing lorem vitae mattis nibh ligula nec sem duis aliquam convallis nunc proin at turpis a",
+        "card_type": "visa",
+        "location": "PO Box 57660"
+        }]
         """u8.ToArray();
 
 Console.WriteLine($"payload is {data.Length} bytes");

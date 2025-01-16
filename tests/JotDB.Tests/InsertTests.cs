@@ -1,4 +1,5 @@
 using JotDB.Configuration;
+using JotDB.Storage.Documents;
 using JotDB.Storage.Journal;
 
 namespace JotDB.Tests;
@@ -9,7 +10,7 @@ public partial class InsertTests : IAsyncLifetime
         new WriteAheadLogOptions
         {
             Mode = "in-memory"
-        }));
+        }), new DocumentCollection(""));
     private readonly Task _run;
 
     private readonly ReadOnlyMemory<byte> _data =

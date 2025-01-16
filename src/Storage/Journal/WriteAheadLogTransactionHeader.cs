@@ -1,5 +1,6 @@
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
+using System.Security.Cryptography;
 
 namespace JotDB.Storage.Journal;
 
@@ -22,6 +23,5 @@ public unsafe struct WriteAheadLogTransactionHeader
     [FieldOffset(24)]
     public long Timestamp;
     [FieldOffset(32)]
-    [MarshalAs(UnmanagedType.ByValArray, SizeConst = 16)]
-    public fixed byte Hash[16];
+    public fixed byte Hash[MD5.HashSizeInBytes];
 }
