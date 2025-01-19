@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using JotDB.Memory;
 using Microsoft.Win32.SafeHandles;
@@ -6,13 +7,14 @@ namespace JotDB.Storage.Documents;
 
 public class DocumentCollectionFile : IDisposable
 {
-    private readonly SafeFileHandle _fileHandle = OpenFileHandle();
-    private readonly AlignedMemory _fileBuffer;
+    private readonly SafeFileHandle _fileHandle;
 
-    private DocumentCollectionFile()
+    private DocumentCollectionFile(
+        SafeFileHandle handle,
+        long size)
     {
-        _fileBuffer = AlignedMemory.Allocate();
-        Initialize();
+        _fileHandle = handle;
+        Size = size;
     }
 
     ~DocumentCollectionFile()
@@ -20,49 +22,56 @@ public class DocumentCollectionFile : IDisposable
         Dispose();
     }
 
-    public static DocumentCollectionFile Open()
-    {
-        return new DocumentCollectionFile();
-    }
-
-    private static SafeFileHandle OpenFileHandle()
-    {
-        var path = $"jotdb_collection.db";
-
-        if (OperatingSystem.IsMacOS())
-        {
-            var handle = File.OpenHandle(
-                path: path,
-                mode: FileMode.Create,
-                access: FileAccess.ReadWrite,
-                share: FileShare.None,
-                options: FileOptions.RandomAccess,
-                preallocationSize: Capacity.Mebibytes(1));
-
-            return handle;
-        }
-
-        else
-            throw new PlatformNotSupportedException();
-    }
+    public long Size { get; }
 
     public void Dispose()
     {
         _fileHandle.Dispose();
-        _fileBuffer.Dispose();
         GC.SuppressFinalize(this);
     }
 
-    private unsafe void Initialize()
+    public static DocumentCollectionFile Open(
+        string collectionName)
     {
-        DocumentCollectionHeader header;
-        var p = &header;
+        var handle = File.OpenHandle(
+            path: $"{collectionName}.db",
+            mode: FileMode.Open,
+            access: FileAccess.ReadWrite,
+            share: FileShare.None,
+            options: FileOptions.RandomAccess);
 
-        p->MagicNumber = 0x8011ACFB;
-        p->Version = 1;
+        var info = new FileInfo($"{collectionName}.db");
 
-        Unsafe.Write(_fileBuffer.Pointer, *p);
-
-        RandomAccess.Write(_fileHandle, _fileBuffer.Span, 0);
+        return new DocumentCollectionFile(handle, info.Length);
     }
+
+    public static DocumentCollectionFile Create(
+        string collectionName,
+        long preallocationSize)
+    {
+        var info = new FileInfo(collectionName);
+
+        Debug.Assert(info.Exists is false, "file should not exist");
+
+        var handle = File.OpenHandle(
+            path: $"{collectionName}.db",
+            mode: FileMode.Create,
+            access: FileAccess.ReadWrite,
+            share: FileShare.None,
+            options: FileOptions.RandomAccess,
+            preallocationSize: preallocationSize);
+
+        return new DocumentCollectionFile(
+            handle: handle,
+            size: Unsafe.SizeOf<DocumentCollectionHeader>());
+    }
+
+    public static bool Exists(string collectionName)
+        => File.Exists($"{collectionName}.db");
+
+    public void Write(ReadOnlySpan<byte> data, long offset)
+        => RandomAccess.Write(_fileHandle, data, offset);
+
+    public void Read(Span<byte> data, long offset)
+        => RandomAccess.Read(_fileHandle, data, offset);
 }

@@ -31,6 +31,10 @@ public sealed class DatabaseTransaction
     public ulong TransactionSequenceNumber { get; init; }
     public TransactionType Type { get; set; }
     public TimeSpan ExecutionTime { get; private set; }
+
+    /// <summary>
+    /// The total number of uncompressed bytes to be written to disk.
+    /// </summary>
     public uint Size { get; private set; }
     public uint CommandCount { get; private set; }
     public List<DatabaseCommand> Commands { get; } = [];

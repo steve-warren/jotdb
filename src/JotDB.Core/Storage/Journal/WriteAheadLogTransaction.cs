@@ -52,6 +52,11 @@ public sealed class WriteAheadLogTransaction : IDisposable
         GC.SuppressFinalize(this);
     }
 
+    /// <summary>
+    /// Returns a task that completes after the transaction has been committed
+    /// to disk.
+    /// </summary>
+    /// <returns></returns>
     public Task WaitForCommitAsync()
     {
         return _awaiter.WaitForSignalAsync();

@@ -66,6 +66,9 @@ public sealed class AsyncAwaiter : IDisposable
 
     public bool IsSet => _tcs.Task.IsCompleted;
 
+    /// <summary>
+    /// Signals that the task is completed.
+    /// </summary>
     public void SignalCompletion()
     {
         _tcs.TrySetResult();
@@ -85,6 +88,10 @@ public sealed class AsyncAwaiter : IDisposable
             TaskScheduler.Current);
     }
 
+    /// <summary>
+    /// Signals that a fault has occurred.
+    /// </summary>
+    /// <param name="exception"></param>
     public void SignalFault(Exception exception)
     {
         _tcs.TrySetException(exception);

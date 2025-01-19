@@ -10,7 +10,7 @@ public partial class InsertTests : IAsyncLifetime
         new WriteAheadLogOptions
         {
             Mode = "in-memory"
-        }), new DocumentCollection(""));
+        }), new DocumentCollection("documents"));
     private readonly Task _run;
 
     private readonly ReadOnlyMemory<byte> _data =

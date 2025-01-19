@@ -1,6 +1,6 @@
 using System.Runtime.CompilerServices;
 
-namespace JotDB.Storage.Documents;
+namespace JotDB.Storage;
 
 public static class Capacity
 {
